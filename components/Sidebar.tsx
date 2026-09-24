@@ -1,14 +1,5 @@
 "use client";
 
-/**
- * Sidebar
- * ------------------------------------------------------------------
- * Renders only the links a given role is allowed to use. This is a UX
- * convenience (don't show a link that will 404/redirect) -- the real
- * enforcement lives in middleware.ts and lib/permissions.ts.
- *
- * Desktop: fixed column. Mobile: rendered inside PortalShell drawer.
- */
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { Role } from "@prisma/client";
@@ -28,6 +19,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/attendance", label: "Attendance", roles: ["ADMIN", "TEACHER", "IT"] },
   { href: "/exams", label: "Exams & Results", roles: ["ADMIN", "TEACHER", "PRINCIPAL"] },
   { href: "/fees", label: "Fees & Accounts", roles: ["ADMIN", "ACCOUNTANT", "SECRETARY"] },
+  { href: "/expenses", label: "Expenses", roles: ["ADMIN", "ACCOUNTANT"] },
   { href: "/notices", label: "Communication", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL"] },
   { href: "/reports", label: "Reports", roles: ["ADMIN", "IT", "PRINCIPAL", "ACCOUNTANT", "SECRETARY"] },
   { href: "/settings", label: "Admin Settings", roles: ["ADMIN", "IT"] },
@@ -36,7 +28,6 @@ const NAV_ITEMS: NavItem[] = [
 export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
-
   const visible = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role));
 
   async function logout() {

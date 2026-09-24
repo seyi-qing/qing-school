@@ -1,8 +1,3 @@
-/**
- * Role-Based Access Control (RBAC)
- * ------------------------------------------------------------------
- * Single source of truth for who can do what.
- */
 import type { Role } from "@prisma/client";
 
 export const PERMISSIONS = {
@@ -13,6 +8,7 @@ export const PERMISSIONS = {
   MANAGE_CLASSES: ["ADMIN", "IT"],
   MANAGE_FEES: ["ADMIN", "ACCOUNTANT"],
   RECORD_PAYMENT: ["ADMIN", "ACCOUNTANT", "SECRETARY"],
+  MANAGE_EXPENSES: ["ADMIN", "ACCOUNTANT"],
   TAKE_ATTENDANCE: ["ADMIN", "TEACHER"],
   ENTER_SCORES: ["ADMIN", "TEACHER"],
   VIEW_ALL_RESULTS: ["ADMIN", "PRINCIPAL", "TEACHER"],
@@ -21,6 +17,7 @@ export const PERMISSIONS = {
   VIEW_AUDIT_TRAIL: ["ADMIN", "IT"],
   MANAGE_USERS: ["ADMIN", "IT"],
   VIEW_REPORTS: ["ADMIN", "IT", "PRINCIPAL", "ACCOUNTANT", "SECRETARY"],
+  SEND_FEE_REMINDERS: ["ADMIN", "ACCOUNTANT", "SECRETARY"],
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
