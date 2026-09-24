@@ -25,14 +25,14 @@ export default async function PublicHomePage() {
           <span className="font-serif text-lg truncate">Force Schools</span>
         </div>
         <nav className="flex flex-wrap gap-3 sm:gap-6 text-sm justify-end">
-          <a href="#news" className="hover:text-gold hidden sm:inline">
-            News
-          </a>
           <a href="/admissions" className="hover:text-gold">
             Admissions
           </a>
           <a href="/result-checker" className="hover:text-gold">
             Results
+          </a>
+          <a href="/complaints" className="hover:text-gold hidden sm:inline">
+            Feedback
           </a>
           <a
             href="/login"
@@ -77,7 +77,10 @@ export default async function PublicHomePage() {
       </section>
 
       <footer className="bg-navy text-paper/60 text-xs px-4 sm:px-8 py-6 text-center">
-        &copy; {new Date().getFullYear()} Force Schools. Built on Force Schools ERP.
+        &copy; {new Date().getFullYear()} Force Schools.{" "}
+        <a href="/complaints" className="underline hover:text-gold">
+          Feedback
+        </a>
       </footer>
     </main>
   );
