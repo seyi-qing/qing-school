@@ -21,6 +21,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/payroll", label: "Payroll", roles: ["ADMIN", "ACCOUNTANT"] },
   { href: "/classes", label: "Classes & Subjects", roles: ["ADMIN", "IT"] },
   { href: "/timetable", label: "Timetable", roles: ["ADMIN", "IT", "TEACHER", "PRINCIPAL"] },
+  { href: "/library", label: "Library", roles: ["ADMIN", "IT", "SECRETARY", "TEACHER", "PRINCIPAL"] },
   { href: "/attendance", label: "Attendance", roles: ["ADMIN", "TEACHER", "IT"] },
   { href: "/exams", label: "Exams & Results", roles: ["ADMIN", "TEACHER", "PRINCIPAL"] },
   { href: "/fees", label: "Fees & Accounts", roles: ["ADMIN", "ACCOUNTANT", "SECRETARY"] },
@@ -42,7 +43,6 @@ export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => v
   }
 
   return (
-    /* h-full + max-h-dvh keeps Sign out visible in the mobile drawer without scrolling */
     <aside className="w-60 max-w-full h-full max-h-dvh bg-navy text-paper flex flex-col no-print">
       <div className="px-5 py-4 border-b border-paper/10 flex items-start justify-between gap-2 shrink-0">
         <div>
