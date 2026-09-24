@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-fraunces: "Fraunces", serif;
+  --font-inter: "Inter", system-ui, sans-serif;
+}
+
+body {
+  background-color: #f7f5ef;
+  color: #1c2230;
+}
+
+.ledger-block {
+  border: 1px solid #dedacd;
+  background: #fffefb;
+  padding: 1.25rem 1.5rem;
+}
+
+.ledger-number {
+  font-family: var(--font-fraunces);
+  font-variant-numeric: tabular-nums;
+}
+
+table.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+table.ledger th {
+  text-align: left;
+  font-weight: 600;
+  color: #4a5265;
+  border-bottom: 2px solid #132a46;
+  padding: 0.5rem 0.75rem;
+}
+table.ledger td {
+  border-bottom: 1px solid #dedacd;
+  padding: 0.6rem 0.75rem;
+}
+table.ledger tbody tr:hover {
+  background-color: #f0ede3;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  font-size: 0.75rem;
+  border: 1px solid currentColor;
+}
+
+:focus-visible {
+  outline: 2px solid #b8923f;
+  outline-offset: 2px;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
