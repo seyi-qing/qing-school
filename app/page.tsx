@@ -1,21 +1,9 @@
 import { prisma } from "@/lib/db";
 
-/**
- * Public Homepage
- * ------------------------------------------------------------------
- * Public start page. Pulls published notices from the same DB as the rest
- * of the ERP. Wrapped in try/catch so a fresh deploy (before `prisma db push`)
- * still renders instead of a hard 500.
- */
 export const dynamic = "force-dynamic";
 
 export default async function PublicHomePage() {
-  let notices: Array<{
-    id: string;
-    title: string;
-    body: string;
-    createdAt: Date;
-  }> = [];
+  let notices: Array<{ id: string; title: string; body: string; createdAt: Date }> = [];
 
   try {
     notices = await prisma.notice.findMany({
@@ -24,28 +12,27 @@ export default async function PublicHomePage() {
       take: 5,
     });
   } catch (err) {
-    // Tables not created yet (P2021) or DB unreachable during first setup.
     console.error("[homepage] notice query failed:", err);
   }
 
   return (
     <main className="min-h-screen bg-paper text-ink">
-      <header className="bg-navy text-paper px-8 py-5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 border-2 border-gold flex items-center justify-center font-serif text-gold text-sm">
+      <header className="bg-navy text-paper px-4 sm:px-8 py-5 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 shrink-0 border-2 border-gold flex items-center justify-center font-serif text-gold text-sm">
             FS
           </div>
-          <span className="font-serif text-lg">Force Schools</span>
+          <span className="font-serif text-lg truncate">Force Schools</span>
         </div>
-        <nav className="flex gap-6 text-sm">
-          <a href="#about" className="hover:text-gold">
-            About
-          </a>
-          <a href="#news" className="hover:text-gold">
+        <nav className="flex flex-wrap gap-3 sm:gap-6 text-sm justify-end">
+          <a href="#news" className="hover:text-gold hidden sm:inline">
             News
           </a>
+          <a href="/admissions" className="hover:text-gold">
+            Admissions
+          </a>
           <a href="/result-checker" className="hover:text-gold">
-            Result Checker
+            Results
           </a>
           <a
             href="/login"
@@ -56,22 +43,22 @@ export default async function PublicHomePage() {
         </nav>
       </header>
 
-      <section className="px-8 py-20 text-center border-b border-line">
-        <h1 className="font-serif text-4xl md:text-5xl max-w-2xl mx-auto leading-tight">
+      <section className="px-4 sm:px-8 py-14 sm:py-20 text-center border-b border-line">
+        <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl max-w-2xl mx-auto leading-tight">
           Excellence in Character and Learning
         </h1>
-        <p className="mt-4 text-ink/60 max-w-lg mx-auto">
+        <p className="mt-4 text-ink/60 max-w-lg mx-auto text-sm sm:text-base">
           Admissions for the 2025/2026 session are now open.
         </p>
         <a
-          href="#"
+          href="/admissions"
           className="inline-block mt-6 bg-navy text-paper px-6 py-3 text-sm hover:bg-navy-light"
         >
           Start Online Admission
         </a>
       </section>
 
-      <section id="news" className="px-8 py-14 max-w-3xl mx-auto">
+      <section id="news" className="px-4 sm:px-8 py-14 max-w-3xl mx-auto">
         <h2 className="font-serif text-2xl mb-6">School News & Notices</h2>
         <div className="space-y-4">
           {notices.map((n) => (
@@ -84,17 +71,13 @@ export default async function PublicHomePage() {
             </article>
           ))}
           {notices.length === 0 && (
-            <p className="text-ink/50 text-sm">
-              No notices published yet — post one from Communication with &quot;Also
-              publish on public website&quot; checked.
-            </p>
+            <p className="text-ink/50 text-sm">No notices published yet.</p>
           )}
         </div>
       </section>
 
-      <footer className="bg-navy text-paper/60 text-xs px-8 py-6 text-center">
-        &copy; {new Date().getFullYear()} Force Schools. Built on Force Schools
-        ERP.
+      <footer className="bg-navy text-paper/60 text-xs px-4 sm:px-8 py-6 text-center">
+        &copy; {new Date().getFullYear()} Force Schools. Built on Force Schools ERP.
       </footer>
     </main>
   );
