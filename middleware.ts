@@ -1,6 +1,3 @@
-/**
- * Route Protection Middleware
- */
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
@@ -11,10 +8,12 @@ const PUBLIC_PATHS = [
   "/api/result-checker",
   "/api/setup",
   "/api/admissions",
+  "/api/complaints",
   "/api/webhooks",
   "/api/fees/payments/confirm",
   "/",
   "/admissions",
+  "/complaints",
   "/result-checker",
   "/pay",
 ];
