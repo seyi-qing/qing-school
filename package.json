@@ -1,0 +1,44 @@
+{
+  "name": "force-schools-erp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Force Schools Management System - a self-contained school ERP (Admin, Teacher, Student, Parent, Accountant, IT, Secretary portals).",
+  "scripts": {
+    "postinstall": "prisma generate",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "setup": "npm install && prisma generate && prisma db push && npm run db:seed"
+  },
+  "dependencies": {
+    "next": "14.2.15",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "@prisma/client": "5.19.1",
+    "prisma": "5.19.1",
+    "bcryptjs": "2.4.3",
+    "jose": "5.9.3",
+    "zod": "3.23.8",
+    "date-fns": "3.6.0",
+    "papaparse": "5.4.1"
+  },
+  "devDependencies": {
+    "typescript": "5.5.4",
+    "@types/node": "20.14.15",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "@types/bcryptjs": "2.4.6",
+    "@types/papaparse": "5.3.14",
+    "tailwindcss": "3.4.10",
+    "postcss": "8.4.41",
+    "autoprefixer": "10.4.20",
+    "tsx": "4.19.0"
+  },
+  "engines": {
+    "node": ">=18.17.0"
+  }
+}

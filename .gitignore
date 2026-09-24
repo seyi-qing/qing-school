@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Environment
+.env
+.env.local
+
+# Database (SQLite dev database + journal)
+prisma/dev.db
+prisma/dev.db-journal
+
+# Logs
+npm-debug.log*
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TypeScript
+next-env.d.ts
+*.tsbuildinfo
