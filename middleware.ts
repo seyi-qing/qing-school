@@ -13,10 +13,12 @@ import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
 // Exact public paths. /api/result-checker must stay public (PIN-based, no login).
+// /api/setup is secret-gated in the route handler (phone-friendly first deploy).
 const PUBLIC_PATHS = [
   "/login",
   "/api/auth/login",
   "/api/result-checker",
+  "/api/setup",
   "/",
   "/admissions",
   "/result-checker",
