@@ -1,30 +1,24 @@
 /**
  * Route Protection Middleware
- * ------------------------------------------------------------------
- * Runs before every matched request, on the edge, before any page or API
- * route executes. This is the outermost security gate: unauthenticated
- * users get bounced to /login, and each portal's routes are restricted to
- * the roles that should see them. Individual API routes still re-check
- * permissions for specific actions (see lib/permissions.ts) -- middleware
- * handles "can this role even be here at all".
  */
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
-// Exact public paths. /api/result-checker must stay public (PIN-based, no login).
-// /api/setup is secret-gated in the route handler (phone-friendly first deploy).
 const PUBLIC_PATHS = [
   "/login",
   "/api/auth/login",
   "/api/result-checker",
   "/api/setup",
+  "/api/admissions",
+  "/api/webhooks",
+  "/api/fees/payments/confirm",
   "/",
   "/admissions",
   "/result-checker",
+  "/pay",
 ];
 
-// Route prefix -> roles allowed. Anything not listed here just needs "logged in".
 const PORTAL_RULES: Array<{ prefix: string; roles: string[] }> = [
   { prefix: "/portal/student", roles: ["STUDENT"] },
   { prefix: "/portal/parent", roles: ["PARENT"] },
@@ -73,6 +67,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Apply to everything except static assets and Next internals.
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

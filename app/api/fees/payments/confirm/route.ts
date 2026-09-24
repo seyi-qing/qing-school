@@ -1,36 +1,45 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
+import { NextRequest, NextResponse } from "next/server";
+import { verifyPayment, type PaymentProvider } from "@/lib/integrations/payments";
+import { finalizeOnlinePayment } from "@/lib/payments-apply";
 import { prisma } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
 
-const ConfirmSchema = z.object({ reference: z.string() });
+export const dynamic = "force-dynamic";
 
-export async function POST(req: Request) {
+/**
+ * Called by /pay/[reference] after gateway redirect (or mock confirm).
+ * Verifies with provider then marks invoice paid.
+ */
+export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  const parsed = ConfirmSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  const reference = body?.reference as string | undefined;
+  const provider = (body?.provider as PaymentProvider) || "PAYSTACK";
 
-  const payment = await prisma.payment.findUnique({ where: { reference: parsed.data.reference } });
-  if (!payment) return NextResponse.json({ error: "Payment not found." }, { status: 404 });
-  if (payment.status === "SUCCESS") {
-    return NextResponse.json({ ok: true, alreadyConfirmed: true });
+  if (!reference) {
+    return NextResponse.json({ error: "reference required" }, { status: 400 });
   }
 
-  const invoice = await prisma.invoice.findUniqueOrThrow({ where: { id: payment.invoiceId } });
-  const newPaid = invoice.amountPaid + payment.amount;
-  const status = newPaid >= invoice.totalAmount ? "PAID" : "PARTIAL";
+  const pending = await prisma.payment.findUnique({ where: { reference } });
+  if (!pending) {
+    return NextResponse.json({ error: "Unknown reference" }, { status: 404 });
+  }
 
-  await prisma.$transaction([
-    prisma.payment.update({ where: { id: payment.id }, data: { status: "SUCCESS" } }),
-    prisma.invoice.update({ where: { id: invoice.id }, data: { amountPaid: newPaid, status } }),
-  ]);
+  const verified = await verifyPayment(provider, reference);
+  if (!verified.success && process.env.PAYSTACK_SECRET_KEY) {
+    return NextResponse.json({ error: "Payment not verified" }, { status: 402 });
+  }
 
-  await logAudit({
-    action: "ONLINE_PAYMENT_CONFIRMED",
-    entity: "Payment",
-    entityId: payment.id,
-    details: { invoiceId: invoice.id, amount: payment.amount },
+  const result = await finalizeOnlinePayment({
+    reference,
+    amountNaira: verified.amountNaira || pending.amount,
   });
 
-  return NextResponse.json({ ok: true });
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    alreadyApplied: result.alreadyApplied,
+    payment: result.payment,
+  });
 }

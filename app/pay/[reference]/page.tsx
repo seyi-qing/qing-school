@@ -1,40 +1,76 @@
 "use client";
 
+import { useParams, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
-export default function MockCheckoutPage({ params }: { params: { reference: string } }) {
-  const router = useRouter();
-  const [status, setStatus] = useState<"idle" | "processing" | "done">("idle");
+/**
+ * Payment return / mock checkout page.
+ * Live Paystack redirects here after payment; mock mode confirms locally.
+ */
+export default function PayReferencePage() {
+  const params = useParams();
+  const search = useSearchParams();
+  const reference = String(params.reference || "");
+  const provider = (search.get("provider") || "PAYSTACK") as "PAYSTACK" | "FLUTTERWAVE";
+
+  const [status, setStatus] = useState<"idle" | "loading" | "ok" | "err">("idle");
+  const [message, setMessage] = useState("");
 
   async function confirm() {
-    setStatus("processing");
-    await fetch("/api/fees/payments/confirm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reference: params.reference }),
-    });
-    setStatus("done");
-    setTimeout(() => router.push("/fees"), 1200);
+    setStatus("loading");
+    try {
+      const res = await fetch("/api/fees/payments/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reference, provider }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatus("err");
+        setMessage(data.error || "Could not confirm payment");
+        return;
+      }
+      setStatus("ok");
+      setMessage(
+        data.alreadyApplied
+          ? "This payment was already recorded. Thank you."
+          : "Payment confirmed. The school has updated the invoice."
+      );
+    } catch {
+      setStatus("err");
+      setMessage("Network error");
+    }
   }
 
   return (
-    <main className="min-h-screen bg-navy flex items-center justify-center px-4">
-      <div className="bg-paper max-w-sm w-full p-8 border border-gold/30 text-center">
-        <div className="w-10 h-10 border-2 border-gold flex items-center justify-center font-serif text-gold text-sm mx-auto mb-4">FS</div>
-        <h1 className="font-serif text-xl mb-2">Simulated Payment Gateway</h1>
-        <p className="text-xs text-ink/50 mb-1">Reference</p>
-        <p className="font-mono text-sm mb-6">{params.reference}</p>
-        <p className="text-xs text-ink/60 mb-6 border-t border-line pt-4">
-          No live gateway keys configured. Click below to mark payment successful.
-        </p>
-        {status !== "done" ? (
-          <button onClick={confirm} disabled={status === "processing"} className="w-full bg-sage text-paper py-2.5 text-sm font-medium disabled:opacity-60">
-            {status === "processing" ? "Processing..." : "Simulate Successful Payment"}
-          </button>
-        ) : (
-          <p className="text-sage text-sm">Payment confirmed. Redirecting...</p>
+    <main className="min-h-screen bg-paper flex items-center justify-center px-4">
+      <div className="ledger-block max-w-md w-full space-y-4 text-center">
+        <h1 className="font-serif text-2xl">Fee Payment</h1>
+        <p className="text-sm text-ink/60 break-all">Reference: {reference}</p>
+
+        {status === "idle" && (
+          <>
+            <p className="text-sm">
+              If you completed payment with the gateway, tap confirm below. In demo mode this
+              simulates a successful charge.
+            </p>
+            <button
+              type="button"
+              onClick={confirm}
+              className="w-full bg-navy text-paper py-2.5 text-sm hover:bg-navy-light"
+            >
+              Confirm payment
+            </button>
+          </>
         )}
+        {status === "loading" && <p className="text-sm">Verifying…</p>}
+        {status === "ok" && <p className="text-sm text-sage">{message}</p>}
+        {status === "err" && <p className="text-sm text-brick">{message}</p>}
+
+        <Link href="/" className="block text-sm text-navy underline">
+          Back to site
+        </Link>
       </div>
     </main>
   );
