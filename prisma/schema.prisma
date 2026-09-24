@@ -121,10 +121,10 @@ model TimetableSlot {
 }
 
 model Staff {
-  id             String       @id @default(cuid())
-  staffId        String       @unique
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId         String       @unique
+  id             String         @id @default(cuid())
+  staffId        String         @unique
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String         @unique
   firstName      String
   lastName       String
   category       String
@@ -132,11 +132,12 @@ model Staff {
   qualification  String?
   phone          String?
   monthlySalary  Float?
-  isActive       Boolean      @default(true)
+  isActive       Boolean        @default(true)
   classesLed     Arm[]
   subjectsTaught ArmSubject[]
   payslips       Payslip[]
-  createdAt      DateTime     @default(now())
+  leaveRequests  LeaveRequest[]
+  createdAt      DateTime       @default(now())
 }
 
 model Student {
@@ -160,8 +161,29 @@ model Student {
   invoices        Invoice[]
   payments        Payment[]
   parentLinks     ParentLink[]
+  documents       Document[]
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+}
+
+model Document {
+  id         String   @id @default(cuid())
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId  String
+  label      String
+  fileUrl    String
+  uploadedAt DateTime @default(now())
+}
+
+model LeaveRequest {
+  id        String   @id @default(cuid())
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  staffId   String
+  startDate DateTime
+  endDate   DateTime
+  reason    String
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
 }
 
 model GradeBand {
@@ -213,13 +235,13 @@ model ResultPin {
 }
 
 model FeeItem {
-  id         String  @id @default(cuid())
-  arm        Arm     @relation(fields: [armId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  arm        Arm      @relation(fields: [armId], references: [id], onDelete: Cascade)
   armId      String
   termId     String
   name       String
   amount     Float
-  compulsory Boolean @default(true)
+  compulsory Boolean  @default(true)
   createdAt  DateTime @default(now())
 }
 
