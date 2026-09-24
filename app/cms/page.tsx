@@ -13,11 +13,19 @@ export default async function CmsPage() {
     redirect(homeRouteForRole(session.role));
   }
 
-  const pages = await prisma.cmsPage.findMany({ orderBy: { updatedAt: "desc" } });
+  const [pages, themeRow] = await Promise.all([
+    prisma.cmsPage.findMany({ orderBy: { updatedAt: "desc" } }),
+    prisma.siteTheme.findFirst(),
+  ]);
+
+  const theme = themeRow
+    ? JSON.parse(themeRow.configJson)
+    : { primary: "#1a2744", accent: "#c9a227", font: "serif" };
 
   return (
-    <PortalShell role={session.role} title="Website CMS" subtitle="Public pages (About, News, etc.)">
+    <PortalShell role={session.role} title="Website CMS" subtitle="Block builder, media, theme">
       <CmsEditor
+        theme={theme}
         pages={pages.map((p) => ({
           id: p.id,
           slug: p.slug,
