@@ -12,20 +12,95 @@ export type Block =
   | { id: string; type: "columns"; left: string; right: string }
   | { id: string; type: "callout"; text: string; tone: "info" | "warn" | "success" };
 
+/** Loose shape for JSON that may include older paragraph { text } form. */
+type RawBlock = {
+  id?: string;
+  type?: string;
+  text?: string;
+  html?: string;
+  level?: number;
+  url?: string;
+  alt?: string;
+  label?: string;
+  href?: string;
+  cite?: string;
+  ordered?: boolean;
+  items?: string[];
+  left?: string;
+  right?: string;
+  tone?: string;
+};
+
 export function newId() {
   return Math.random().toString(36).slice(2, 11);
 }
 
 export function parseBlocks(body: string): Block[] {
   try {
-    const j = JSON.parse(body);
+    const j: unknown = JSON.parse(body);
     if (Array.isArray(j)) {
-      return j.map((b: Block & { text?: string }) => {
+      return (j as RawBlock[]).map((raw): Block => {
+        const id = typeof raw.id === "string" ? raw.id : newId();
+
         // migrate legacy paragraph { text } → { html }
-        if (b.type === "paragraph" && "text" in b && !("html" in b)) {
-          return { id: b.id, type: "paragraph", html: escapeHtml(String((b as { text: string }).text)) };
+        if (raw.type === "paragraph") {
+          if (typeof raw.html === "string") {
+            return { id, type: "paragraph", html: raw.html };
+          }
+          if (typeof raw.text === "string") {
+            return { id, type: "paragraph", html: escapeHtml(raw.text).replace(/\n/g, "<br/>") };
+          }
+          return { id, type: "paragraph", html: "" };
         }
-        return b as Block;
+
+        if (raw.type === "heading") {
+          const level = (raw.level === 1 || raw.level === 3 ? raw.level : 2) as 1 | 2 | 3;
+          return { id, type: "heading", text: String(raw.text ?? ""), level };
+        }
+        if (raw.type === "image") {
+          return { id, type: "image", url: String(raw.url ?? ""), alt: String(raw.alt ?? "") };
+        }
+        if (raw.type === "button") {
+          return {
+            id,
+            type: "button",
+            label: String(raw.label ?? "Button"),
+            href: String(raw.href ?? "#"),
+          };
+        }
+        if (raw.type === "divider") {
+          return { id, type: "divider" };
+        }
+        if (raw.type === "quote") {
+          return { id, type: "quote", text: String(raw.text ?? ""), cite: raw.cite };
+        }
+        if (raw.type === "list") {
+          return {
+            id,
+            type: "list",
+            ordered: Boolean(raw.ordered),
+            items: Array.isArray(raw.items) ? raw.items.map(String) : [],
+          };
+        }
+        if (raw.type === "video") {
+          return { id, type: "video", url: String(raw.url ?? "") };
+        }
+        if (raw.type === "columns") {
+          return {
+            id,
+            type: "columns",
+            left: String(raw.left ?? ""),
+            right: String(raw.right ?? ""),
+          };
+        }
+        if (raw.type === "callout") {
+          const tone =
+            raw.tone === "warn" || raw.tone === "success" ? raw.tone : "info";
+          return { id, type: "callout", text: String(raw.text ?? ""), tone };
+        }
+
+        // unknown → empty paragraph
+        return { id, type: "paragraph", html: "" };
       });
     }
   } catch {
