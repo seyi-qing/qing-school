@@ -163,6 +163,8 @@ model Student {
   parentLinks     ParentLink[]
   documents       Document[]
   bookLoans       BookLoan[]
+  hostelAllocs    HostelAllocation[]
+  transportEnrolls TransportEnrollment[]
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 }
@@ -207,6 +209,50 @@ model BookLoan {
   borrowedAt DateTime     @default(now())
   dueDate    DateTime?
   returnedAt DateTime?
+}
+
+model HostelRoom {
+  id           String             @id @default(cuid())
+  name         String
+  block        String?
+  capacity     Int                @default(4)
+  gender       String?
+  allocations  HostelAllocation[]
+  createdAt    DateTime           @default(now())
+}
+
+model HostelAllocation {
+  id         String     @id @default(cuid())
+  room       HostelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomId     String
+  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId  String
+  bedLabel   String?
+  status     String     @default("ACTIVE")
+  allocatedAt DateTime  @default(now())
+  vacatedAt  DateTime?
+}
+
+model TransportRoute {
+  id          String                @id @default(cuid())
+  name        String
+  vehicle     String?
+  driverName  String?
+  driverPhone String?
+  feeAmount   Float                 @default(0)
+  enrollments TransportEnrollment[]
+  createdAt   DateTime              @default(now())
+}
+
+model TransportEnrollment {
+  id        String         @id @default(cuid())
+  route     TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  routeId   String
+  student   Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId String
+  status    String         @default("ACTIVE")
+  startDate DateTime       @default(now())
+  endDate   DateTime?
 }
 
 model GradeBand {
