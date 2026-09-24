@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { Role } from "@prisma/client";
 import { Sidebar } from "./Sidebar";
 
@@ -14,18 +17,53 @@ export function PortalShell({
   actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   return (
-    <div className="flex min-h-screen">
-      <Sidebar role={role} />
-      <div className="flex-1 min-w-0">
-        <header className="border-b border-line bg-paper px-8 py-5 flex items-center justify-between no-print">
-          <div>
-            <h1 className="font-serif text-2xl text-ink">{title}</h1>
-            {subtitle && <p className="text-sm text-ink/60 mt-0.5">{subtitle}</p>}
+    <div className="flex min-h-screen bg-paper">
+      {/* Desktop sidebar */}
+      <div className="hidden lg:flex lg:shrink-0">
+        <Sidebar role={role} />
+      </div>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="absolute inset-0 bg-ink/50"
+            aria-label="Close menu"
+            onClick={() => setMobileOpen(false)}
+          />
+          <div className="relative z-10 h-full w-[min(18rem,85vw)] shadow-xl">
+            <Sidebar role={role} onNavigate={() => setMobileOpen(false)} />
           </div>
-          {actions}
+        </div>
+      )}
+
+      <div className="flex-1 min-w-0 flex flex-col">
+        <header className="border-b border-line bg-paper px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex items-start sm:items-center justify-between gap-3 no-print sticky top-0 z-30">
+          <div className="flex items-start gap-3 min-w-0">
+            <button
+              type="button"
+              className="lg:hidden mt-0.5 shrink-0 w-10 h-10 flex flex-col items-center justify-center gap-1.5 border border-line bg-white"
+              aria-label="Open menu"
+              onClick={() => setMobileOpen(true)}
+            >
+              <span className="block w-5 h-0.5 bg-navy" />
+              <span className="block w-5 h-0.5 bg-navy" />
+              <span className="block w-5 h-0.5 bg-navy" />
+            </button>
+            <div className="min-w-0">
+              <h1 className="font-serif text-xl sm:text-2xl text-ink leading-tight truncate">{title}</h1>
+              {subtitle && (
+                <p className="text-xs sm:text-sm text-ink/60 mt-0.5 break-all sm:break-normal">{subtitle}</p>
+              )}
+            </div>
+          </div>
+          {actions && <div className="shrink-0 flex flex-wrap gap-2 justify-end">{actions}</div>}
         </header>
-        <main className="px-8 py-6">{children}</main>
+        <main className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex-1">{children}</main>
       </div>
     </div>
   );
@@ -46,10 +84,10 @@ export function StatBlock({
   const toneClass =
     tone === "positive" ? "text-sage" : tone === "warning" ? "text-brick" : "text-ink";
   return (
-    <div className="ledger-block">
-      <p className="text-xs uppercase tracking-wide text-ink/50">{label}</p>
-      <p className={`ledger-number text-3xl mt-1 ${toneClass}`}>{value}</p>
-      {sublabel && <p className="text-xs text-ink/50 mt-1">{sublabel}</p>}
+    <div className="ledger-block h-full">
+      <p className="text-[10px] sm:text-xs uppercase tracking-wide text-ink/50 leading-snug">{label}</p>
+      <p className={`ledger-number text-2xl sm:text-3xl mt-1 break-words ${toneClass}`}>{value}</p>
+      {sublabel && <p className="text-[10px] sm:text-xs text-ink/50 mt-1">{sublabel}</p>}
     </div>
   );
 }

@@ -36,45 +36,69 @@ export default async function DashboardPage() {
 
   return (
     <PortalShell role={session.role} title="Dashboard" subtitle={`Welcome back, ${session.email}`}>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <StatBlock label="Active Students" value={studentCount.toLocaleString()} />
         <StatBlock label="Staff on Roll" value={staffCount.toLocaleString()} />
         <StatBlock label="Classes" value={classCount.toLocaleString()} />
         <StatBlock
           label="Attendance Today"
           value={attendancePct !== null ? `${attendancePct}%` : "Not taken"}
-          sublabel={todayAttendance.length ? `${presentToday}/${todayAttendance.length} marked present` : undefined}
+          sublabel={
+            todayAttendance.length
+              ? `${presentToday}/${todayAttendance.length} marked present`
+              : undefined
+          }
         />
       </div>
 
       {showFinancials && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <StatBlock label="Fees Collected" value={formatNaira(collected)} tone="positive" />
-          <StatBlock label="Fees Outstanding" value={formatNaira(outstanding)} tone="warning" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
+          <StatBlock
+            label="Fees Collected (This Term)"
+            value={formatNaira(collected)}
+            tone="positive"
+          />
+          <StatBlock
+            label="Fees Outstanding"
+            value={formatNaira(outstanding)}
+            tone={outstanding > 0 ? "warning" : "default"}
+          />
         </div>
       )}
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <section className="ledger-block">
-          <h2 className="font-serif text-lg mb-3">Quick Links</h2>
-          <ul className="text-sm space-y-2">
-            <li><Link href="/students" className="text-navy underline">Students</Link></li>
-            <li><Link href="/attendance" className="text-navy underline">Attendance</Link></li>
-            <li><Link href="/fees" className="text-navy underline">Fees</Link></li>
-            <li><Link href="/exams" className="text-navy underline">Exams</Link></li>
-            <li><Link href="/reports" className="text-navy underline">Reports</Link></li>
-          </ul>
+          <h2 className="font-serif text-base sm:text-lg mb-3">Quick actions</h2>
+          <div className="flex flex-col gap-2 text-sm">
+            <Link href="/students/new" className="text-navy underline hover:text-gold py-1">
+              Admit a new student
+            </Link>
+            <Link href="/fees" className="text-navy underline hover:text-gold py-1">
+              Collect a fee payment
+            </Link>
+            <Link href="/attendance" className="text-navy underline hover:text-gold py-1">
+              Take today&apos;s attendance
+            </Link>
+            <Link href="/notices" className="text-navy underline hover:text-gold py-1">
+              Post a notice
+            </Link>
+          </div>
         </section>
+
         <section className="ledger-block">
-          <h2 className="font-serif text-lg mb-3">Recent Activity</h2>
-          <ul className="text-sm space-y-1">
-            {recentAudit.map((a) => (
-              <li key={a.id} className="border-b border-line py-1 last:border-0">
-                <span className="font-medium">{a.action}</span>{" "}
-                <span className="text-ink/50">{a.user?.email ?? "system"}</span>
+          <h2 className="font-serif text-base sm:text-lg mb-3">Recent activity</h2>
+          <ul className="text-sm space-y-2">
+            {recentAudit.length === 0 && <li className="text-ink/50">No activity recorded yet.</li>}
+            {recentAudit.map((log) => (
+              <li key={log.id} className="border-b border-line pb-2 last:border-0">
+                <span className="text-ink/70 break-all">{log.user?.email ?? "System"}</span>{" "}
+                <span className="text-ink/40">&middot;</span>{" "}
+                <span>{log.action.replaceAll("_", " ").toLowerCase()}</span>{" "}
+                <span className="text-ink/40 text-xs block sm:inline">
+                  ({new Date(log.createdAt).toLocaleString()})
+                </span>
               </li>
             ))}
-            {recentAudit.length === 0 && <li className="text-ink/50">No activity yet.</li>}
           </ul>
         </section>
       </div>

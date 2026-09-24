@@ -10,12 +10,26 @@
 body {
   background-color: #f7f5ef;
   color: #1c2230;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Prevent horizontal page scroll on small screens */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .ledger-block {
   border: 1px solid #dedacd;
   background: #fffefb;
-  padding: 1.25rem 1.5rem;
+  padding: 1rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .ledger-block {
+    padding: 1.25rem 1.5rem;
+  }
 }
 
 .ledger-number {
@@ -23,22 +37,34 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Tables: scroll horizontally on narrow screens instead of crushing columns */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 table.ledger {
   width: 100%;
+  min-width: 32rem;
   border-collapse: collapse;
   font-size: 0.875rem;
 }
+
 table.ledger th {
   text-align: left;
   font-weight: 600;
   color: #4a5265;
   border-bottom: 2px solid #132a46;
   padding: 0.5rem 0.75rem;
+  white-space: nowrap;
 }
+
 table.ledger td {
   border-bottom: 1px solid #dedacd;
   padding: 0.6rem 0.75rem;
 }
+
 table.ledger tbody tr:hover {
   background-color: #f0ede3;
 }
