@@ -1,14 +1,20 @@
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { PortalShell, StatBlock } from "@/components/PortalShell";
-import { can } from "@/lib/permissions";
+import { can, homeRouteForRole } from "@/lib/permissions";
 import { formatNaira } from "@/lib/format";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
+/** Staff operations dashboard only — students/parents/teachers use portals. */
 export default async function DashboardPage() {
   const session = await requireSession();
+
+  if (session.role === "STUDENT" || session.role === "PARENT" || session.role === "TEACHER") {
+    redirect(homeRouteForRole(session.role));
+  }
 
   const [studentCount, staffCount, classCount, todayAttendance, invoices, recentAudit] =
     await Promise.all([

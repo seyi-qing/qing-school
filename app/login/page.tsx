@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/dashboard";
+  // Only honour ?next= for staff-style paths; portal roles always use API redirectTo
+  const nextParam = searchParams.get("next");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,7 +30,9 @@ function LoginForm() {
         setLoading(false);
         return;
       }
-      router.push(next);
+      // Prefer server role home (student → /portal/student, etc.)
+      const dest = data.redirectTo || nextParam || "/dashboard";
+      router.push(dest);
       router.refresh();
     } catch {
       setError("Network error. Try again.");

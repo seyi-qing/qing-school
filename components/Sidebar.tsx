@@ -11,7 +11,10 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard" },
+  { href: "/dashboard", label: "Dashboard", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "ACCOUNTANT"] },
+  { href: "/portal/student", label: "My Portal", roles: ["STUDENT"] },
+  { href: "/portal/parent", label: "My Children", roles: ["PARENT"] },
+  { href: "/portal/teacher", label: "Teacher Portal", roles: ["TEACHER"] },
   { href: "/students", label: "Students", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "TEACHER"] },
   { href: "/staff", label: "Staff", roles: ["ADMIN", "IT"] },
   { href: "/leave", label: "Staff Leave", roles: ["ADMIN", "IT", "PRINCIPAL", "TEACHER", "ACCOUNTANT", "SECRETARY"] },
