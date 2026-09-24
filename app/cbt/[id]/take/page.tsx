@@ -32,6 +32,7 @@ export default async function TakeExamPage({ params }: { params: { id: string } 
         <PortalShell role={session.role} title={exam.title}>
           <p className="text-sm">
             Already submitted: {prior.score}/{prior.total} ({prior.percent}%)
+            {prior.needsGrading ? " — essays pending grade" : ""}
           </p>
         </PortalShell>
       );
@@ -46,10 +47,14 @@ export default async function TakeExamPage({ params }: { params: { id: string } 
         examId={exam.id}
         durationMinutes={exam.durationMinutes}
         canSubmit={session.role === "STUDENT"}
+        proctoring={exam.proctoring}
+        negativeMark={exam.negativeMark}
         questions={exam.questions.map((q) => ({
           id: q.id,
           prompt: q.prompt,
-          options: JSON.parse(q.optionsJson) as string[],
+          type: q.type,
+          marks: q.marks,
+          options: q.optionsJson ? (JSON.parse(q.optionsJson) as string[]) : [],
         }))}
       />
     </PortalShell>
