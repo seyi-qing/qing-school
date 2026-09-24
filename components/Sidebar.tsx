@@ -42,8 +42,9 @@ export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => v
   }
 
   return (
-    <aside className="w-60 max-w-full h-full min-h-screen bg-navy text-paper flex flex-col no-print">
-      <div className="px-5 py-5 border-b border-paper/10 flex items-start justify-between gap-2">
+    /* h-full + max-h-dvh keeps Sign out visible in the mobile drawer without scrolling */
+    <aside className="w-60 max-w-full h-full max-h-dvh bg-navy text-paper flex flex-col no-print">
+      <div className="px-5 py-4 border-b border-paper/10 flex items-start justify-between gap-2 shrink-0">
         <div>
           <div className="w-9 h-9 border-2 border-gold flex items-center justify-center font-serif text-gold text-sm mb-2">
             FS
@@ -65,7 +66,7 @@ export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => v
         )}
       </div>
 
-      <nav className="flex-1 py-3 overflow-y-auto">
+      <nav className="flex-1 min-h-0 py-2 overflow-y-auto overscroll-contain">
         {visible.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
@@ -85,13 +86,15 @@ export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => v
         })}
       </nav>
 
-      <button
-        type="button"
-        onClick={logout}
-        className="m-4 mt-0 border border-paper/20 text-paper/80 text-sm py-2 hover:border-gold hover:text-gold transition-colors"
-      >
-        Sign out
-      </button>
+      <div className="shrink-0 p-4 border-t border-paper/10 bg-navy">
+        <button
+          type="button"
+          onClick={logout}
+          className="w-full border border-paper/30 text-paper text-sm py-2.5 hover:border-gold hover:text-gold transition-colors"
+        >
+          Sign out
+        </button>
+      </div>
     </aside>
   );
 }

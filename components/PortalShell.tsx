@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Role } from "@prisma/client";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 
 export function PortalShell({
@@ -18,15 +19,20 @@ export function PortalShell({
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const router = useRouter();
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <div className="flex min-h-screen bg-paper">
-      {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:shrink-0">
+      <div className="hidden lg:flex lg:shrink-0 lg:h-screen lg:sticky lg:top-0">
         <Sidebar role={role} />
       </div>
 
-      {/* Mobile drawer */}
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true">
           <button
@@ -35,14 +41,14 @@ export function PortalShell({
             aria-label="Close menu"
             onClick={() => setMobileOpen(false)}
           />
-          <div className="relative z-10 h-full w-[min(18rem,85vw)] shadow-xl">
+          <div className="relative z-10 h-full max-h-dvh w-[min(18rem,85vw)] shadow-xl">
             <Sidebar role={role} onNavigate={() => setMobileOpen(false)} />
           </div>
         </div>
       )}
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="border-b border-line bg-paper px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex items-start sm:items-center justify-between gap-3 no-print sticky top-0 z-30">
+        <header className="border-b border-line bg-paper px-4 sm:px-6 lg:px-8 py-3 sm:py-5 flex items-start sm:items-center justify-between gap-3 no-print sticky top-0 z-30">
           <div className="flex items-start gap-3 min-w-0">
             <button
               type="button"
@@ -61,7 +67,17 @@ export function PortalShell({
               )}
             </div>
           </div>
-          {actions && <div className="shrink-0 flex flex-wrap gap-2 justify-end">{actions}</div>}
+          <div className="shrink-0 flex flex-wrap gap-2 items-center justify-end">
+            {actions}
+            {/* Always-visible sign out on small screens (drawer button stays as backup) */}
+            <button
+              type="button"
+              onClick={logout}
+              className="lg:hidden text-xs border border-line px-2.5 py-1.5 text-ink/70 hover:border-navy hover:text-navy"
+            >
+              Sign out
+            </button>
+          </div>
         </header>
         <main className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex-1">{children}</main>
       </div>
@@ -69,7 +85,6 @@ export function PortalShell({
   );
 }
 
-/** A single ledger-style stat block for dashboards. */
 export function StatBlock({
   label,
   value,
