@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { sendSms } from "@/lib/sms";
+import { sendSms } from "@/lib/integrations/messaging";
 import { formatNaira } from "@/lib/format";
 
 const PHONE_RE = /(?:\+?234|0)?[789][01]\d{8}/;
@@ -39,13 +39,13 @@ export async function POST() {
     }
     const bal = inv.totalAmount - inv.amountPaid;
     const body = `Force Schools: Fee reminder for ${inv.student.firstName}. Balance ${formatNaira(bal)}. Please pay at the office or online portal.`;
-    const result = await sendSms(phone, body);
+    const result = await sendSms({ to: phone, body });
     if (result.ok) sent++;
     else skipped++;
   }
 
   return NextResponse.json({
-    message: `Reminders: ${sent} sent, ${skipped} skipped (no phone / SMS not configured). Put phone in student medical notes e.g. Phone: 0803...`,
+    message: `Reminders: ${sent} sent, ${skipped} skipped (no phone / SMS failed). Put phone in student notes e.g. Phone: 0803...`,
     sent,
     skipped,
   });

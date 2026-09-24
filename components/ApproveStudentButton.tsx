@@ -8,25 +8,14 @@ export function ApproveStudentButton({ studentId }: { studentId: string }) {
   const [loading, setLoading] = useState(false);
 
   async function approve() {
-    if (!confirm("Activate this applicant as an ACTIVE student?")) return;
     setLoading(true);
-    try {
-      const res = await fetch(`/api/students/${studentId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "ACTIVE" }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        alert(data.error || "Could not approve");
-        setLoading(false);
-        return;
-      }
-      router.refresh();
-    } catch {
-      alert("Network error");
-      setLoading(false);
-    }
+    await fetch(`/api/students/${studentId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "ACTIVE" }),
+    });
+    setLoading(false);
+    router.refresh();
   }
 
   return (
@@ -34,9 +23,9 @@ export function ApproveStudentButton({ studentId }: { studentId: string }) {
       type="button"
       onClick={approve}
       disabled={loading}
-      className="bg-sage text-paper text-xs px-3 py-1.5 hover:opacity-90 disabled:opacity-60"
+      className="text-xs sm:text-sm bg-sage text-paper px-3 py-1.5 disabled:opacity-60 whitespace-nowrap"
     >
-      {loading ? "…" : "Approve → Active"}
+      {loading ? "…" : "Approve (ACTIVE)"}
     </button>
   );
 }

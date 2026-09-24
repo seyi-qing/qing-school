@@ -1,16 +1,7 @@
-/**
- * SMS / Messaging Integration (Termii)
- * ------------------------------------------------------------------
- * MOCK when TERMII_API_KEY is unset: still writes MessageLog for testing.
- * LIVE when key is set: posts to Termii Messaging API.
- * Docs: https://developers.termii.com/messaging
- */
 import { prisma } from "@/lib/db";
 
-export async function sendSms(params: { to: string; body: string }) {
+export async function sendSms(params: { to: string; body: string }): Promise<{ ok: boolean }> {
   const mock = !process.env.TERMII_API_KEY;
-  let status: string = "SENT";
-  let providerResponse: string | undefined;
 
   if (!mock) {
     try {
@@ -18,20 +9,35 @@ export async function sendSms(params: { to: string; body: string }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          to: params.to.replace(/^\+/, "").replace(/^0/, "234"),
-          from: process.env.TERMII_SENDER_ID || "FORCESCH",
+          to: params.to.replace(/^\+/, ""),
+          from: process.env.TERMII_SENDER_ID || "ForceSch",
           sms: params.body,
           type: "plain",
           channel: "generic",
           api_key: process.env.TERMII_API_KEY,
         }),
       });
-      const json = await res.json().catch(() => ({}));
-      providerResponse = JSON.stringify(json).slice(0, 500);
-      status = res.ok ? "SENT" : "FAILED";
-    } catch (err) {
-      status = "FAILED";
-      providerResponse = err instanceof Error ? err.message : String(err);
+      const data = await res.json().catch(() => ({}));
+      const ok = res.ok;
+      await prisma.messageLog.create({
+        data: {
+          channel: "SMS",
+          recipient: params.to,
+          body: params.body,
+          status: ok ? "SENT" : "FAILED",
+        },
+      });
+      return { ok };
+    } catch {
+      await prisma.messageLog.create({
+        data: {
+          channel: "SMS",
+          recipient: params.to,
+          body: params.body,
+          status: "FAILED",
+        },
+      });
+      return { ok: false };
     }
   }
 
@@ -39,12 +45,11 @@ export async function sendSms(params: { to: string; body: string }) {
     data: {
       channel: "SMS",
       recipient: params.to,
-      body: params.body + (providerResponse ? ` | ${providerResponse}` : ""),
-      status,
+      body: params.body,
+      status: "SENT",
     },
   });
-
-  return { status };
+  return { ok: true };
 }
 
 export async function sendBulkSms(recipients: string[], body: string) {
