@@ -162,6 +162,7 @@ model Student {
   payments        Payment[]
   parentLinks     ParentLink[]
   documents       Document[]
+  bookLoans       BookLoan[]
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 }
@@ -184,6 +185,28 @@ model LeaveRequest {
   reason    String
   status    String   @default("PENDING")
   createdAt DateTime @default(now())
+}
+
+model LibraryBook {
+  id        String     @id @default(cuid())
+  title     String
+  author    String?
+  isbn      String?
+  copies    Int        @default(1)
+  available Int        @default(1)
+  loans     BookLoan[]
+  createdAt DateTime   @default(now())
+}
+
+model BookLoan {
+  id         String       @id @default(cuid())
+  book       LibraryBook  @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  bookId     String
+  student    Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId  String
+  borrowedAt DateTime     @default(now())
+  dueDate    DateTime?
+  returnedAt DateTime?
 }
 
 model GradeBand {
