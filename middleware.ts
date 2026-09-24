@@ -16,6 +16,7 @@ const PUBLIC_PATHS = [
   "/complaints",
   "/result-checker",
   "/pay",
+  "/p",
 ];
 
 const PORTAL_RULES: Array<{ prefix: string; roles: string[] }> = [
@@ -24,7 +25,7 @@ const PORTAL_RULES: Array<{ prefix: string; roles: string[] }> = [
   { prefix: "/portal/teacher", roles: ["TEACHER"] },
   { prefix: "/staff", roles: ["ADMIN", "IT"] },
   { prefix: "/payroll", roles: ["ADMIN", "ACCOUNTANT"] },
-  { prefix: "/settings", roles: ["ADMIN", "IT"] },
+  { prefix: "/settings", roles: ["ADMIN", "IT", "PRINCIPAL"] },
 ];
 
 async function getRoleFromCookie(req: NextRequest): Promise<string | null> {

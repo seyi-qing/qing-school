@@ -22,16 +22,36 @@ export function StudentDocuments({
     e.preventDefault();
     setError("");
     setLoading(true);
-    const fd = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    const label = String(fd.get("label") || "");
+    const file = fd.get("file");
+    let fileUrl = String(fd.get("fileUrl") || "");
+
     try {
+      if (file instanceof File && file.size > 0) {
+        const up = new FormData();
+        up.append("file", file);
+        const upRes = await fetch("/api/uploads", { method: "POST", body: up });
+        const upData = await upRes.json();
+        if (!upRes.ok) {
+          setError(upData.error || "Upload failed");
+          setLoading(false);
+          return;
+        }
+        fileUrl = upData.url;
+      }
+
+      if (!fileUrl) {
+        setError("Provide a file or a URL");
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch("/api/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          studentId,
-          label: fd.get("label"),
-          fileUrl: fd.get("fileUrl"),
-        }),
+        body: JSON.stringify({ studentId, label, fileUrl }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -39,7 +59,7 @@ export function StudentDocuments({
         setLoading(false);
         return;
       }
-      (e.target as HTMLFormElement).reset();
+      form.reset();
       router.refresh();
     } catch {
       setError("Network error");
@@ -48,7 +68,7 @@ export function StudentDocuments({
   }
 
   async function remove(id: string) {
-    if (!confirm("Remove this document link?")) return;
+    if (!confirm("Remove this document?")) return;
     await fetch(`/api/documents?id=${id}`, { method: "DELETE" });
     router.refresh();
   }
@@ -74,34 +94,29 @@ export function StudentDocuments({
             )}
           </li>
         ))}
-        {documents.length === 0 && <li className="text-ink/50">No documents linked yet.</li>}
+        {documents.length === 0 && <li className="text-ink/50">No documents yet.</li>}
       </ul>
 
       {canManage && (
-        <form onSubmit={onSubmit} className="grid sm:grid-cols-3 gap-2 text-sm">
-          {error && <p className="sm:col-span-3 text-brick text-xs">{error}</p>}
-          <input
-            name="label"
-            required
-            placeholder="Label (e.g. Birth certificate)"
-            className="border border-line px-2 py-2"
-          />
+        <form onSubmit={onSubmit} className="grid sm:grid-cols-2 gap-2 text-sm">
+          {error && <p className="sm:col-span-2 text-brick text-xs">{error}</p>}
+          <input name="label" required placeholder="Label" className="border border-line px-2 py-2" />
+          <input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="border border-line px-2 py-2 text-xs" />
           <input
             name="fileUrl"
             type="url"
-            required
-            placeholder="https://drive.google.com/..."
-            className="border border-line px-2 py-2 sm:col-span-1"
+            placeholder="Or paste https:// link"
+            className="border border-line px-2 py-2 sm:col-span-2"
           />
           <button
             type="submit"
             disabled={loading}
-            className="bg-navy text-paper px-3 py-2 disabled:opacity-60"
+            className="sm:col-span-2 bg-navy text-paper px-3 py-2 disabled:opacity-60"
           >
-            {loading ? "…" : "Add link"}
+            {loading ? "Saving…" : "Add document"}
           </button>
-          <p className="sm:col-span-3 text-xs text-ink/40">
-            Vercel has no local file disk — store files on Drive/Dropbox and paste the share link.
+          <p className="sm:col-span-2 text-xs text-ink/40">
+            Binary upload needs Vercel Blob token (BLOB_READ_WRITE_TOKEN). Otherwise use a Drive link.
           </p>
         </form>
       )}

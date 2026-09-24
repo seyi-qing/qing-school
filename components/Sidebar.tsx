@@ -21,6 +21,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/payroll", label: "Payroll", roles: ["ADMIN", "ACCOUNTANT"] },
   { href: "/classes", label: "Classes & Subjects", roles: ["ADMIN", "IT"] },
   { href: "/timetable", label: "Timetable", roles: ["ADMIN", "IT", "TEACHER", "PRINCIPAL"] },
+  { href: "/cbt", label: "CBT", roles: ["ADMIN", "IT", "TEACHER", "PRINCIPAL", "STUDENT"] },
   { href: "/library", label: "Library", roles: ["ADMIN", "IT", "SECRETARY", "TEACHER", "PRINCIPAL"] },
   { href: "/hostel", label: "Hostel", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL"] },
   { href: "/transport", label: "Transport", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "ACCOUNTANT"] },
@@ -29,7 +30,9 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/fees", label: "Fees & Accounts", roles: ["ADMIN", "ACCOUNTANT", "SECRETARY"] },
   { href: "/expenses", label: "Expenses", roles: ["ADMIN", "ACCOUNTANT"] },
   { href: "/notices", label: "Communication", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL"] },
+  { href: "/cms", label: "Website CMS", roles: ["ADMIN", "IT", "SECRETARY"] },
   { href: "/reports", label: "Reports", roles: ["ADMIN", "IT", "PRINCIPAL", "ACCOUNTANT", "SECRETARY"] },
+  { href: "/settings/report-template", label: "Report designer", roles: ["ADMIN", "IT", "PRINCIPAL"] },
   { href: "/settings", label: "Admin Settings", roles: ["ADMIN", "IT"] },
 ];
 

@@ -165,6 +165,7 @@ model Student {
   bookLoans       BookLoan[]
   hostelAllocs    HostelAllocation[]
   transportEnrolls TransportEnrollment[]
+  cbtAttempts     CbtAttempt[]
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 }
@@ -212,25 +213,25 @@ model BookLoan {
 }
 
 model HostelRoom {
-  id           String             @id @default(cuid())
-  name         String
-  block        String?
-  capacity     Int                @default(4)
-  gender       String?
-  allocations  HostelAllocation[]
-  createdAt    DateTime           @default(now())
+  id          String             @id @default(cuid())
+  name        String
+  block       String?
+  capacity    Int                @default(4)
+  gender      String?
+  allocations HostelAllocation[]
+  createdAt   DateTime           @default(now())
 }
 
 model HostelAllocation {
-  id         String     @id @default(cuid())
-  room       HostelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  roomId     String
-  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  studentId  String
-  bedLabel   String?
-  status     String     @default("ACTIVE")
-  allocatedAt DateTime  @default(now())
-  vacatedAt  DateTime?
+  id          String     @id @default(cuid())
+  room        HostelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomId      String
+  student     Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId   String
+  bedLabel    String?
+  status      String     @default("ACTIVE")
+  allocatedAt DateTime   @default(now())
+  vacatedAt   DateTime?
 }
 
 model TransportRoute {
@@ -253,6 +254,59 @@ model TransportEnrollment {
   status    String         @default("ACTIVE")
   startDate DateTime       @default(now())
   endDate   DateTime?
+}
+
+model CmsPage {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  title     String
+  body      String
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CbtExam {
+  id              String        @id @default(cuid())
+  title           String
+  durationMinutes Int           @default(30)
+  armId           String?
+  isOpen          Boolean       @default(false)
+  createdBy       String?
+  questions       CbtQuestion[]
+  attempts        CbtAttempt[]
+  createdAt       DateTime      @default(now())
+}
+
+model CbtQuestion {
+  id           String  @id @default(cuid())
+  exam         CbtExam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  examId       String
+  prompt       String
+  optionsJson  String
+  correctIndex Int
+  order        Int     @default(0)
+}
+
+model CbtAttempt {
+  id          String   @id @default(cuid())
+  exam        CbtExam  @relation(fields: [examId], references: [id], onDelete: Cascade)
+  examId      String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId   String
+  score       Int
+  total       Int
+  percent     Int
+  answersJson String
+  submittedAt DateTime @default(now())
+}
+
+model ReportCardTemplate {
+  id         String   @id @default(cuid())
+  name       String
+  configJson String
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
 }
 
 model GradeBand {
