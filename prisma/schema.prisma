@@ -1,0 +1,307 @@
+// FORCE SCHOOLS ERP - DATABASE SCHEMA
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  IT
+  SECRETARY
+  PRINCIPAL
+  ACCOUNTANT
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  staff        Staff?
+  student      Student?
+  parentLinks  ParentLink[]
+  auditLogs    AuditLog[]
+  @@index([role])
+}
+
+model ParentLink {
+  id        String   @id @default(cuid())
+  parent    User     @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  parentId  String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId String
+  relation  String
+  createdAt DateTime @default(now())
+  @@unique([parentId, studentId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isCurrent Boolean  @default(false)
+  terms     Term[]
+  createdAt DateTime @default(now())
+}
+
+model Term {
+  id          String   @id @default(cuid())
+  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId   String
+  name        String
+  isCurrent   Boolean  @default(false)
+  startDate   DateTime?
+  endDate     DateTime?
+  invoices    Invoice[]
+  scores      Score[]
+  attendances Attendance[]
+  resultPins  ResultPin[]
+  @@unique([sessionId, name])
+}
+
+model SchoolClass {
+  id    String @id @default(cuid())
+  name  String
+  order Int    @default(0)
+  arms  Arm[]
+}
+
+model Arm {
+  id             String      @id @default(cuid())
+  name           String
+  schoolClass    SchoolClass @relation(fields: [schoolClassId], references: [id], onDelete: Cascade)
+  schoolClassId  String
+  classTeacher   Staff?      @relation(fields: [classTeacherId], references: [id])
+  classTeacherId String?
+  students       Student[]
+  subjects       ArmSubject[]
+  feeItems       FeeItem[]
+  timetableSlots TimetableSlot[]
+  @@unique([schoolClassId, name])
+}
+
+model Subject {
+  id       String       @id @default(cuid())
+  name     String       @unique
+  code     String?      @unique
+  armLinks ArmSubject[]
+}
+
+model ArmSubject {
+  id             String          @id @default(cuid())
+  arm            Arm             @relation(fields: [armId], references: [id], onDelete: Cascade)
+  armId          String
+  subject        Subject         @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId      String
+  teacher        Staff?          @relation(fields: [teacherId], references: [id])
+  teacherId      String?
+  scores         Score[]
+  timetableSlots TimetableSlot[]
+  @@unique([armId, subjectId])
+}
+
+model TimetableSlot {
+  id           String     @id @default(cuid())
+  arm          Arm        @relation(fields: [armId], references: [id], onDelete: Cascade)
+  armId        String
+  armSubject   ArmSubject @relation(fields: [armSubjectId], references: [id], onDelete: Cascade)
+  armSubjectId String
+  dayOfWeek    Int
+  period       Int
+  @@unique([armId, dayOfWeek, period])
+}
+
+model Staff {
+  id             String       @id @default(cuid())
+  staffId        String       @unique
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String       @unique
+  firstName      String
+  lastName       String
+  category       String
+  designation    String?
+  qualification  String?
+  phone          String?
+  monthlySalary  Float?
+  isActive       Boolean      @default(true)
+  classesLed     Arm[]
+  subjectsTaught ArmSubject[]
+  payslips       Payslip[]
+  createdAt      DateTime     @default(now())
+}
+
+model Student {
+  id              String       @id @default(cuid())
+  admissionNumber String       @unique
+  user            User?        @relation(fields: [userId], references: [id])
+  userId          String?      @unique
+  firstName       String
+  lastName        String
+  otherNames      String?
+  gender          String?
+  dateOfBirth     DateTime?
+  address         String?
+  previousSchool  String?
+  medicalNotes    String?
+  status          String       @default("ACTIVE")
+  arm             Arm?         @relation(fields: [armId], references: [id])
+  armId           String?
+  scores          Score[]
+  attendances     Attendance[]
+  invoices        Invoice[]
+  payments        Payment[]
+  parentLinks     ParentLink[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model GradeBand {
+  id       String @id @default(cuid())
+  minScore Float
+  maxScore Float
+  grade    String
+  remark   String
+}
+
+model Score {
+  id           String     @id @default(cuid())
+  student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId    String
+  armSubject   ArmSubject @relation(fields: [armSubjectId], references: [id], onDelete: Cascade)
+  armSubjectId String
+  term         Term       @relation(fields: [termId], references: [id], onDelete: Cascade)
+  termId       String
+  ca1          Float      @default(0)
+  ca2          Float      @default(0)
+  exam         Float      @default(0)
+  total        Float      @default(0)
+  grade        String?
+  remark       String?
+  enteredBy    String?
+  @@unique([studentId, armSubjectId, termId])
+}
+
+model Attendance {
+  id        String   @id @default(cuid())
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId String
+  term      Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
+  termId    String
+  date      DateTime
+  status    String
+  @@unique([studentId, date])
+}
+
+model ResultPin {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  term      Term      @relation(fields: [termId], references: [id], onDelete: Cascade)
+  termId    String
+  isUsed    Boolean   @default(false)
+  usedBy    String?
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model FeeItem {
+  id         String  @id @default(cuid())
+  arm        Arm     @relation(fields: [armId], references: [id], onDelete: Cascade)
+  armId      String
+  termId     String
+  name       String
+  amount     Float
+  compulsory Boolean @default(true)
+  createdAt  DateTime @default(now())
+}
+
+model Invoice {
+  id          String    @id @default(cuid())
+  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId   String
+  term        Term      @relation(fields: [termId], references: [id], onDelete: Cascade)
+  termId      String
+  lineItems   String
+  totalAmount Float
+  amountPaid  Float     @default(0)
+  status      String    @default("UNPAID")
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
+  payments    Payment[]
+  @@index([studentId])
+  @@index([status])
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId  String
+  amount     Float
+  method     String
+  reference  String   @unique
+  status     String   @default("SUCCESS")
+  paidAt     DateTime @default(now())
+  recordedBy String?
+}
+
+model ExpenseRecord {
+  id          String   @id @default(cuid())
+  category    String
+  description String
+  amount      Float
+  date        DateTime @default(now())
+  recordedBy  String?
+}
+
+model Payslip {
+  id          String   @id @default(cuid())
+  staff       Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  staffId     String
+  month       String
+  gross       Float
+  deductions  Float    @default(0)
+  net         Float
+  generatedAt DateTime @default(now())
+  @@unique([staffId, month])
+}
+
+model Notice {
+  id           String   @id @default(cuid())
+  title        String
+  body         String
+  audience     String   @default("ALL")
+  publishToWeb Boolean  @default(false)
+  createdBy    String?
+  createdAt    DateTime @default(now())
+}
+
+model MessageLog {
+  id        String   @id @default(cuid())
+  channel   String
+  recipient String
+  body      String
+  status    String   @default("QUEUED")
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  details   String?
+  createdAt DateTime @default(now())
+  @@index([entity, entityId])
+}
