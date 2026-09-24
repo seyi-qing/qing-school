@@ -1,43 +1,42 @@
 import { prisma } from "@/lib/db";
+import { blocksToHtml, parseBlocks } from "@/lib/cms-blocks";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
-type Block =
-  | { type: "heading"; text: string; level: number }
-  | { type: "paragraph"; text: string }
-  | { type: "image"; url: string; alt: string }
-  | { type: "button"; label: string; href: string }
-  | { type: "divider" };
+function isLive(page: { published: boolean; publishAt: Date | null }) {
+  if (!page.published) return false;
+  if (page.publishAt && page.publishAt.getTime() > Date.now()) return false;
+  return true;
+}
 
-function renderBlocks(body: string): string {
-  try {
-    const blocks = JSON.parse(body) as Block[];
-    if (!Array.isArray(blocks)) throw new Error("not blocks");
-    return blocks
-      .map((b) => {
-        if (b.type === "heading") return `<h${b.level || 2}>${b.text}</h${b.level || 2}>`;
-        if (b.type === "paragraph") return `<p>${b.text.replace(/\n/g, "<br/>")}</p>`;
-        if (b.type === "image")
-          return `<img src="${b.url}" alt="${b.alt || ""}" style="max-width:100%;height:auto;margin:1rem 0"/>`;
-        if (b.type === "button")
-          return `<p><a href="${b.href}" style="display:inline-block;padding:10px 18px;background:var(--cms-primary,#1a2744);color:#fff;text-decoration:none">${b.label}</a></p>`;
-        if (b.type === "divider") return "<hr/>";
-        return "";
-      })
-      .join("\n");
-  } catch {
-    return body.replace(/\n/g, "<br/>");
-  }
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  const page = await prisma.cmsPage.findFirst({ where: { slug: params.slug } });
+  if (!page || !isLive(page)) return { title: "Not found" };
+  return {
+    title: page.metaTitle || page.title,
+    description: page.metaDescription || undefined,
+  };
 }
 
 export default async function PublicCmsPage({ params }: { params: { slug: string } }) {
+  if (params.slug === "home") {
+    // homepage is /
+    const { redirect } = await import("next/navigation");
+    redirect("/");
+  }
+
   const [page, themeRow] = await Promise.all([
-    prisma.cmsPage.findFirst({ where: { slug: params.slug, published: true } }),
+    prisma.cmsPage.findFirst({ where: { slug: params.slug } }),
     prisma.siteTheme.findFirst(),
   ]);
-  if (!page) notFound();
+  if (!page || !isLive(page)) notFound();
 
   const theme = themeRow
     ? JSON.parse(themeRow.configJson)
@@ -48,8 +47,9 @@ export default async function PublicCmsPage({ params }: { params: { slug: string
       className="min-h-screen bg-paper text-ink"
       style={{
         fontFamily: theme.font === "sans" ? "system-ui, sans-serif" : "Georgia, serif",
-        // @ts-expect-error custom property
+        // @ts-expect-error css
         "--cms-primary": theme.primary,
+        "--cms-accent": theme.accent,
       }}
     >
       <header
@@ -67,7 +67,7 @@ export default async function PublicCmsPage({ params }: { params: { slug: string
         <h1 className="font-serif text-3xl mb-6">{page.title}</h1>
         <div
           className="prose text-sm leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: renderBlocks(page.body) }}
+          dangerouslySetInnerHTML={{ __html: blocksToHtml(parseBlocks(page.body)) }}
         />
       </article>
     </main>

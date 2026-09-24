@@ -257,13 +257,39 @@ model TransportEnrollment {
 }
 
 model CmsPage {
-  id        String   @id @default(cuid())
-  slug      String   @unique
-  title     String
-  body      String
-  published Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String           @id @default(cuid())
+  slug            String           @unique
+  title           String
+  body            String
+  published       Boolean          @default(false)
+  metaTitle       String?
+  metaDescription String?
+  publishAt       DateTime?
+  versions        CmsPageVersion[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model CmsPageVersion {
+  id              String   @id @default(cuid())
+  page            CmsPage  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  pageId          String
+  title           String
+  body            String
+  metaTitle       String?
+  metaDescription String?
+  savedBy         String?
+  createdAt       DateTime @default(now())
+}
+
+model MediaAsset {
+  id         String   @id @default(cuid())
+  url        String
+  filename   String
+  mimeType   String?
+  sizeBytes  Int?
+  uploadedBy String?
+  createdAt  DateTime @default(now())
 }
 
 model SiteTheme {
