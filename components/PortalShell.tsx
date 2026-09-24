@@ -48,8 +48,9 @@ export function PortalShell({
       )}
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="border-b border-line bg-paper px-4 sm:px-6 lg:px-8 py-3 sm:py-5 flex items-start sm:items-center justify-between gap-3 no-print sticky top-0 z-30">
-          <div className="flex items-start gap-3 min-w-0">
+        {/* Stack on mobile so title never becomes one-letter-per-line */}
+        <header className="border-b border-line bg-paper px-4 sm:px-6 lg:px-8 py-3 sm:py-4 no-print sticky top-0 z-30">
+          <div className="flex items-start gap-3">
             <button
               type="button"
               className="lg:hidden mt-0.5 shrink-0 w-10 h-10 flex flex-col items-center justify-center gap-1.5 border border-line bg-white"
@@ -60,25 +61,33 @@ export function PortalShell({
               <span className="block w-5 h-0.5 bg-navy" />
               <span className="block w-5 h-0.5 bg-navy" />
             </button>
-            <div className="min-w-0">
-              <h1 className="font-serif text-xl sm:text-2xl text-ink leading-tight truncate">{title}</h1>
-              {subtitle && (
-                <p className="text-xs sm:text-sm text-ink/60 mt-0.5 break-all sm:break-normal">{subtitle}</p>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <h1 className="font-serif text-xl sm:text-2xl text-ink leading-tight break-words">
+                    {title}
+                  </h1>
+                  {subtitle && (
+                    <p className="text-xs sm:text-sm text-ink/60 mt-0.5 break-words">{subtitle}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="lg:hidden shrink-0 text-xs border border-line px-2.5 py-1.5 text-ink/70 hover:border-navy"
+                >
+                  Sign out
+                </button>
+              </div>
+
+              {actions && (
+                <div className="mt-3 flex flex-wrap gap-2 items-center">{actions}</div>
               )}
             </div>
           </div>
-          <div className="shrink-0 flex flex-wrap gap-2 items-center justify-end">
-            {actions}
-            {/* Always-visible sign out on small screens (drawer button stays as backup) */}
-            <button
-              type="button"
-              onClick={logout}
-              className="lg:hidden text-xs border border-line px-2.5 py-1.5 text-ink/70 hover:border-navy hover:text-navy"
-            >
-              Sign out
-            </button>
-          </div>
         </header>
+
         <main className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex-1">{children}</main>
       </div>
     </div>

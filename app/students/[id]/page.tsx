@@ -32,12 +32,24 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
       attendances: { orderBy: { date: "desc" }, take: 10 },
       parentLinks: { include: { parent: { select: { email: true } } } },
       documents: { orderBy: { uploadedAt: "desc" } },
+      hostelAllocs: {
+        where: { status: "ACTIVE" },
+        include: { room: true },
+        take: 1,
+      },
+      transportEnrolls: {
+        where: { status: "ACTIVE" },
+        include: { route: true },
+        take: 1,
+      },
     },
   });
 
   if (!student) notFound();
 
   const canManage = can(session.role, "MANAGE_STUDENTS");
+  const hostel = student.hostelAllocs[0];
+  const transport = student.transportEnrolls[0];
 
   return (
     <PortalShell
@@ -52,7 +64,7 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
     >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
         <section className="ledger-block">
-          <h2 className="font-serif text-lg mb-3">Bio Data</h2>
+          <h2 className="font-serif text-lg mb-3">Bio data</h2>
           <dl className="text-sm space-y-1.5">
             <Row label="Gender" value={student.gender ?? "-"} />
             <Row
@@ -67,11 +79,23 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
               label="Guardian(s)"
               value={student.parentLinks.map((p) => p.parent.email).join(", ") || "None linked"}
             />
+            <Row
+              label="Hostel"
+              value={
+                hostel
+                  ? `${hostel.room.block ? hostel.room.block + " / " : ""}${hostel.room.name}${hostel.bedLabel ? " bed " + hostel.bedLabel : ""}`
+                  : "Not allocated"
+              }
+            />
+            <Row
+              label="Transport"
+              value={transport ? transport.route.name : "Not enrolled"}
+            />
           </dl>
         </section>
 
         <section className="ledger-block">
-          <h2 className="font-serif text-lg mb-3">Fee Invoices</h2>
+          <h2 className="font-serif text-lg mb-3">Fee invoices</h2>
           {student.invoices.length === 0 && <p className="text-sm text-ink/50">No invoices yet.</p>}
           <ul className="text-sm space-y-2">
             {student.invoices.map((inv) => (
@@ -89,7 +113,7 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
         </section>
 
         <section className="ledger-block">
-          <h2 className="font-serif text-lg mb-3">Recent Attendance</h2>
+          <h2 className="font-serif text-lg mb-3">Recent attendance</h2>
           {student.attendances.length === 0 && (
             <p className="text-sm text-ink/50">No attendance recorded yet.</p>
           )}
@@ -160,8 +184,8 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4">
-      <dt className="text-ink/50">{label}</dt>
-      <dd className="text-right">{value}</dd>
+      <dt className="text-ink/50 shrink-0">{label}</dt>
+      <dd className="text-right break-words">{value}</dd>
     </div>
   );
 }

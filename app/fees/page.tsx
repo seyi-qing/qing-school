@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { PortalShell } from "@/components/PortalShell";
-import { FeeReminderButton } from "@/components/FeeReminderButton";
 import { formatNaira } from "@/lib/format";
 import { CollectPaymentForm } from "./CollectPaymentForm";
+import { FeeReminderButton } from "./FeeReminderButton";
 import { redirect } from "next/navigation";
-import { can, homeRouteForRole } from "@/lib/permissions";
+import { homeRouteForRole } from "@/lib/permissions";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -28,8 +28,6 @@ export default async function FeesPage() {
 
   const outstanding = allInvoices.reduce((s, i) => s + (i.totalAmount - i.amountPaid), 0);
   const debtors = allInvoices.filter((i) => i.status !== "PAID");
-  const canRemind = can(session.role, "SEND_FEE_REMINDERS");
-  const canExpenses = can(session.role, "MANAGE_EXPENSES");
 
   return (
     <PortalShell
@@ -37,39 +35,37 @@ export default async function FeesPage() {
       title="Fees & Accounts"
       subtitle="Invoices, payments and debtors"
       actions={
-        <div className="flex flex-wrap gap-2 items-center">
-          {canExpenses && (
-            <Link
-              href="/expenses"
-              className="border border-navy text-navy text-sm px-3 py-1.5 hover:bg-navy hover:text-paper"
-            >
-              Expenses
-            </Link>
-          )}
-          {canRemind && <FeeReminderButton />}
-        </div>
+        <>
+          <Link
+            href="/expenses"
+            className="text-xs sm:text-sm border border-line px-3 py-1.5 hover:border-navy whitespace-nowrap"
+          >
+            Expenses
+          </Link>
+          <FeeReminderButton />
+        </>
       }
     >
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div className="ledger-block">
-          <p className="text-xs uppercase tracking-wide text-ink/50">Total Collected</p>
+          <p className="text-xs uppercase tracking-wide text-ink/50">Total collected</p>
           <p className="ledger-number text-2xl text-sage mt-1">
             {formatNaira(totalCollected._sum.amountPaid ?? 0)}
           </p>
         </div>
         <div className="ledger-block">
-          <p className="text-xs uppercase tracking-wide text-ink/50">Total Outstanding</p>
+          <p className="text-xs uppercase tracking-wide text-ink/50">Total outstanding</p>
           <p className="ledger-number text-2xl text-brick mt-1">{formatNaira(outstanding)}</p>
         </div>
         <div className="ledger-block">
-          <p className="text-xs uppercase tracking-wide text-ink/50">Students Owing</p>
+          <p className="text-xs uppercase tracking-wide text-ink/50">Students owing</p>
           <p className="ledger-number text-2xl mt-1">{debtors.length}</p>
         </div>
       </div>
 
       <section className="ledger-block !p-0 overflow-x-auto">
-        <div className="p-4 pb-0 flex items-center justify-between">
-          <h2 className="font-serif text-lg">Recent Invoices</h2>
+        <div className="p-4 pb-0">
+          <h2 className="font-serif text-lg">Recent invoices</h2>
         </div>
         <table className="ledger mt-3">
           <thead>
@@ -79,7 +75,7 @@ export default async function FeesPage() {
               <th>Paid</th>
               <th>Balance</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th>Collect</th>
             </tr>
           </thead>
           <tbody>
