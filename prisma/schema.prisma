@@ -141,33 +141,33 @@ model Staff {
 }
 
 model Student {
-  id              String       @id @default(cuid())
-  admissionNumber String       @unique
-  user            User?        @relation(fields: [userId], references: [id])
-  userId          String?      @unique
-  firstName       String
-  lastName        String
-  otherNames      String?
-  gender          String?
-  dateOfBirth     DateTime?
-  address         String?
-  previousSchool  String?
-  medicalNotes    String?
-  status          String       @default("ACTIVE")
-  arm             Arm?         @relation(fields: [armId], references: [id])
-  armId           String?
-  scores          Score[]
-  attendances     Attendance[]
-  invoices        Invoice[]
-  payments        Payment[]
-  parentLinks     ParentLink[]
-  documents       Document[]
-  bookLoans       BookLoan[]
-  hostelAllocs    HostelAllocation[]
+  id               String                @id @default(cuid())
+  admissionNumber  String                @unique
+  user             User?                 @relation(fields: [userId], references: [id])
+  userId           String?               @unique
+  firstName        String
+  lastName         String
+  otherNames       String?
+  gender           String?
+  dateOfBirth      DateTime?
+  address          String?
+  previousSchool   String?
+  medicalNotes     String?
+  status           String                @default("ACTIVE")
+  arm              Arm?                  @relation(fields: [armId], references: [id])
+  armId            String?
+  scores           Score[]
+  attendances      Attendance[]
+  invoices         Invoice[]
+  payments         Payment[]
+  parentLinks      ParentLink[]
+  documents        Document[]
+  bookLoans        BookLoan[]
+  hostelAllocs     HostelAllocation[]
   transportEnrolls TransportEnrollment[]
-  cbtAttempts     CbtAttempt[]
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  cbtAttempts      CbtAttempt[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 }
 
 model Document {
@@ -202,12 +202,12 @@ model LibraryBook {
 }
 
 model BookLoan {
-  id         String       @id @default(cuid())
-  book       LibraryBook  @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  id         String      @id @default(cuid())
+  book       LibraryBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
   bookId     String
-  student    Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student    Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
   studentId  String
-  borrowedAt DateTime     @default(now())
+  borrowedAt DateTime    @default(now())
   dueDate    DateTime?
   returnedAt DateTime?
 }
@@ -266,12 +266,20 @@ model CmsPage {
   updatedAt DateTime @updatedAt
 }
 
+model SiteTheme {
+  id         String   @id @default(cuid())
+  configJson String
+  updatedAt  DateTime @updatedAt
+}
+
 model CbtExam {
   id              String        @id @default(cuid())
   title           String
   durationMinutes Int           @default(30)
   armId           String?
   isOpen          Boolean       @default(false)
+  negativeMark    Float         @default(0)
+  proctoring      Boolean       @default(true)
   createdBy       String?
   questions       CbtQuestion[]
   attempts        CbtAttempt[]
@@ -283,22 +291,38 @@ model CbtQuestion {
   exam         CbtExam @relation(fields: [examId], references: [id], onDelete: Cascade)
   examId       String
   prompt       String
-  optionsJson  String
-  correctIndex Int
+  type         String  @default("MCQ")
+  optionsJson  String?
+  correctIndex Int?
+  marks        Float   @default(1)
   order        Int     @default(0)
+  bankId       String?
+}
+
+model CbtBankQuestion {
+  id           String   @id @default(cuid())
+  prompt       String
+  type         String   @default("MCQ")
+  optionsJson  String?
+  correctIndex Int?
+  marks        Float    @default(1)
+  subjectTag   String?
+  createdAt    DateTime @default(now())
 }
 
 model CbtAttempt {
-  id          String   @id @default(cuid())
-  exam        CbtExam  @relation(fields: [examId], references: [id], onDelete: Cascade)
-  examId      String
-  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  studentId   String
-  score       Int
-  total       Int
-  percent     Int
-  answersJson String
-  submittedAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  exam         CbtExam  @relation(fields: [examId], references: [id], onDelete: Cascade)
+  examId       String
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId    String
+  score        Float
+  total        Float
+  percent      Int
+  answersJson  String
+  proctorJson  String?
+  needsGrading Boolean  @default(false)
+  submittedAt  DateTime @default(now())
 }
 
 model ReportCardTemplate {

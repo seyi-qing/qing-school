@@ -10,6 +10,10 @@ const Schema = z.object({
   showPosition: z.boolean().default(true),
   showAttendance: z.boolean().default(true),
   principalTitle: z.string().max(80).optional(),
+  headerBg: z.string().max(20).optional(),
+  accentColor: z.string().max(20).optional(),
+  logoUrl: z.string().max(500).optional(),
+  sections: z.array(z.string()).optional(),
 });
 
 export async function GET() {
@@ -24,6 +28,18 @@ export async function GET() {
           showPosition: true,
           showAttendance: true,
           principalTitle: "Principal",
+          headerBg: "#1a2744",
+          accentColor: "#c9a227",
+          sections: [
+            "header",
+            "studentInfo",
+            "scoresTable",
+            "attendance",
+            "position",
+            "remarks",
+            "signatures",
+            "footer",
+          ],
         },
   });
 }
