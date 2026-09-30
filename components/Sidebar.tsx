@@ -50,14 +50,15 @@ export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => v
   return (
     <aside className="w-60 max-w-full h-full max-h-dvh bg-navy text-paper flex flex-col no-print">
       <div className="px-5 py-4 border-b border-paper/10 flex items-start justify-between gap-2 shrink-0">
-        <div>
-          <div className="w-9 h-9 border-2 border-gold flex items-center justify-center font-serif text-gold text-sm mb-2">
-            FS
+        <div className="flex items-center gap-2.5 min-w-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="KMS" className="w-10 h-10 object-contain shrink-0" />
+          <div className="min-w-0">
+            <p className="font-serif text-lg leading-tight">KMS</p>
+            <p className="text-[11px] text-paper/50 truncate">
+              {role.charAt(0) + role.slice(1).toLowerCase()} Portal
+            </p>
           </div>
-          <p className="font-serif text-lg leading-tight">Force Schools</p>
-          <p className="text-[11px] text-paper/50">
-            {role.charAt(0) + role.slice(1).toLowerCase()} Portal
-          </p>
         </div>
         {onNavigate && (
           <button
