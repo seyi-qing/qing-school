@@ -21,7 +21,7 @@ export function PublicHeader({ solid = true }: { solid?: boolean }) {
           <Link
             key={item.href}
             href={item.href}
-            className="hover:text-gold transition-colors hidden xs:inline sm:inline"
+            className="hover:text-gold transition-colors hidden sm:inline"
           >
             {item.label}
           </Link>
@@ -38,13 +38,17 @@ export function PublicHeader({ solid = true }: { solid?: boolean }) {
 }
 
 export function PublicFooter() {
+  const phones = [SCHOOL.contact.phone, SCHOOL.contact.phoneAlt, SCHOOL.contact.phoneAlt2]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <footer className="bg-navy text-paper/80">
       <div className="max-w-6xl mx-auto px-4 sm:px-8 py-10 grid gap-8 sm:grid-cols-3">
         <div>
           <Logo size="md" light href="/" />
           <p className="mt-3 text-sm text-paper/60 leading-relaxed max-w-xs">
-            {SCHOOL.tagline}. Located in {SCHOOL.location}.
+            {SCHOOL.tagline}
           </p>
         </div>
         <div>
@@ -76,9 +80,9 @@ export function PublicFooter() {
           <p className="font-serif text-paper mb-3">Contact</p>
           <ul className="space-y-2 text-sm text-paper/70">
             <li>{SCHOOL.contact.address}</li>
-            <li>{SCHOOL.contact.phone}</li>
+            <li>{phones}</li>
             <li>
-              <a href={`mailto:${SCHOOL.contact.email}`} className="hover:text-gold">
+              <a href={`mailto:${SCHOOL.contact.email}`} className="hover:text-gold break-all">
                 {SCHOOL.contact.email}
               </a>
             </li>
