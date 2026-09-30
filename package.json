@@ -1,8 +1,8 @@
 {
-  "name": "force-schools-erp",
+  "name": "kms-school-erp",
   "version": "1.0.0",
   "private": true,
-  "description": "Force Schools Management System - a self-contained school ERP (Admin, Teacher, Student, Parent, Accountant, IT, Secretary portals).",
+  "description": "Kayvlop Magnificent School (KMS) — full school ERP: admissions, academics, fees, portals for Admin, Teachers, Students & Parents.",
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "next dev",
