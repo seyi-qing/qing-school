@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // Only honour ?next= for staff-style paths; portal roles always use API redirectTo
   const nextParam = searchParams.get("next");
 
   const [email, setEmail] = useState("");
@@ -30,7 +29,6 @@ function LoginForm() {
         setLoading(false);
         return;
       }
-      // Prefer server role home (student → /portal/student, etc.)
       const dest = data.redirectTo || nextParam || "/dashboard";
       router.push(dest);
       router.refresh();
@@ -44,11 +42,14 @@ function LoginForm() {
     <main className="min-h-screen bg-paper flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex w-12 h-12 border-2 border-gold items-center justify-center font-serif text-gold text-lg mb-3">
-            FS
-          </div>
-          <h1 className="font-serif text-2xl sm:text-3xl text-ink">Force Schools</h1>
-          <p className="text-sm text-ink/60 mt-1">Portal sign in</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.svg"
+            alt="Kayvlop Magnificent School"
+            className="w-20 h-20 object-contain mx-auto mb-3"
+          />
+          <h1 className="font-serif text-2xl sm:text-3xl text-ink">Kayvlop Magnificent School</h1>
+          <p className="text-sm text-ink/60 mt-1">Portal sign in · Education with Godliness</p>
         </div>
 
         <form onSubmit={onSubmit} className="ledger-block space-y-4">
