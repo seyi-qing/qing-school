@@ -29,29 +29,27 @@ async function generateAdmissionNumber(): Promise<string> {
 export async function GET(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!can(session.role, "students:read")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim();
-  const status = searchParams.get("status");
+  const armId = searchParams.get("armId") ?? undefined;
 
   const students = await prisma.student.findMany({
     where: {
-      ...(status ? { status: status as never } : {}),
+      status: "ACTIVE",
+      armId: armId || undefined,
       ...(q
         ? {
             OR: [
-              { firstName: { contains: q, mode: "insensitive" } },
-              { lastName: { contains: q, mode: "insensitive" } },
-              { admissionNumber: { contains: q, mode: "insensitive" } },
+              { firstName: { contains: q } },
+              { lastName: { contains: q } },
+              { admissionNumber: { contains: q } },
             ],
           }
         : {}),
     },
-    include: { arm: { include: { class: true } } },
-    orderBy: { createdAt: "desc" },
+    include: { arm: { include: { schoolClass: true } } },
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     take: 200,
   });
 
@@ -60,41 +58,45 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!can(session.role, "students:write")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session || !can(session.role, "MANAGE_STUDENTS")) {
+    return NextResponse.json(
+      { error: "You don't have permission to admit students." },
+      { status: 403 }
+    );
   }
 
   const body = await req.json().catch(() => null);
   const parsed = CreateStudentSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid data" },
+      { status: 400 }
+    );
   }
 
   const admissionNumber = await generateAdmissionNumber();
-  const d = parsed.data;
+  const data = parsed.data;
 
   const student = await prisma.student.create({
     data: {
       admissionNumber,
-      firstName: d.firstName,
-      lastName: d.lastName,
-      otherNames: d.otherNames,
-      gender: d.gender,
-      dateOfBirth: d.dateOfBirth ? new Date(d.dateOfBirth) : undefined,
-      address: d.address,
-      previousSchool: d.previousSchool,
-      medicalNotes: d.medicalNotes,
-      armId: d.armId || undefined,
-      status: "ACTIVE",
+      firstName: data.firstName,
+      lastName: data.lastName,
+      otherNames: data.otherNames,
+      gender: data.gender,
+      dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
+      address: data.address,
+      previousSchool: data.previousSchool,
+      medicalNotes: data.medicalNotes,
+      armId: data.armId || undefined,
     },
   });
 
   await logAudit({
-    action: "STUDENT_CREATED",
+    userId: session.userId,
+    action: "CREATE_STUDENT",
     entity: "Student",
     entityId: student.id,
-    actorId: session.userId,
     details: { admissionNumber },
   });
 
