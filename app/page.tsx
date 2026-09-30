@@ -80,7 +80,7 @@ export default async function PublicHomePage() {
         <div className="relative max-w-6xl mx-auto px-4 sm:px-8 py-16 sm:py-24 grid lg:grid-cols-[1.1fr_0.9fr] gap-10 items-center">
           <div>
             <p className="text-gold text-xs sm:text-sm uppercase tracking-[0.2em] font-medium mb-4">
-              {SCHOOL.location} · {SCHOOL.motto}
+              {SCHOOL.motto}
             </p>
             <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl leading-tight max-w-xl">
               {SCHOOL.tagline}
@@ -124,7 +124,7 @@ export default async function PublicHomePage() {
         <>
           <section className="max-w-6xl mx-auto px-4 sm:px-8 py-14 sm:py-20">
             <div className="text-center max-w-2xl mx-auto mb-12">
-              <h2 className="font-serif text-2xl sm:text-3xl">Why families choose {SCHOOL.shortName}</h2>
+              <h2 className="font-serif text-2xl sm:text-3xl">Why families choose {SCHOOL.name}</h2>
               <p className="mt-3 text-ink/60 text-sm sm:text-base">
                 A complete learning environment with modern systems and timeless values.
               </p>
