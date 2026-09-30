@@ -170,22 +170,26 @@ export default async function PublicHomePage() {
           <h2 className="font-serif text-2xl sm:text-3xl">School News & Notices</h2>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {notices.map((n) => (
-            <article
-              key={n.id}
-              className="ledger-block flex flex-col hover:border-navy/25 transition-colors"
-            >
-              <p className="text-[11px] uppercase tracking-wide text-ink/45">
-                {new Date(n.createdAt).toLocaleDateString("en-NG", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </p>
-              <h3 className="font-serif text-lg mt-2">{n.title}</h3>
-              <p className="text-sm text-ink/70 mt-2 line-clamp-3 flex-1">{n.body}</p>
-            </article>
-          ))}
+          {notices.map((n) => {
+            const title = n.title.replace(/Force Schools/gi, SCHOOL.name);
+            const body = n.body.replace(/Force Schools/gi, SCHOOL.name);
+            return (
+              <article
+                key={n.id}
+                className="ledger-block flex flex-col hover:border-navy/25 transition-colors"
+              >
+                <p className="text-[11px] uppercase tracking-wide text-ink/45">
+                  {new Date(n.createdAt).toLocaleDateString("en-NG", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </p>
+                <h3 className="font-serif text-lg mt-2">{title}</h3>
+                <p className="text-sm text-ink/70 mt-2 line-clamp-3 flex-1">{body}</p>
+              </article>
+            );
+          })}
           {notices.length === 0 && (
             <p className="text-ink/50 text-sm col-span-full">No notices published yet.</p>
           )}
