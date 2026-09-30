@@ -1,16 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none">
-  <circle cx="100" cy="95" r="78" fill="#1a3a6e"/>
-  <circle cx="100" cy="95" r="70" stroke="#c9a227" stroke-width="3" fill="#e8f0fa"/>
-  <text x="100" y="28" text-anchor="middle" fill="#1a3a6e" font-family="Georgia,serif" font-size="11" font-weight="700">KAYVLOP MAGNIFICENT SCHOOL</text>
-  <rect x="78" y="72" width="44" height="32" rx="2" fill="#fff" stroke="#1a3a6e" stroke-width="2"/>
-  <line x1="100" y1="72" x2="100" y2="104" stroke="#1a3a6e" stroke-width="1.5"/>
-  <line x1="108" y1="68" x2="125" y2="55" stroke="#c9a227" stroke-width="3" stroke-linecap="round"/>
-  <rect x="62" y="112" width="28" height="18" rx="1" fill="#fff" stroke="#1a3a6e" stroke-width="1.5"/>
-  <rect x="60" y="130" width="32" height="3" rx="1" fill="#1a3a6e"/>
-  <path d="M118 118 L148 128 L118 138 L88 128 Z" fill="#1a3a6e"/>
-  <rect x="142" y="128" width="2" height="14" fill="#1a3a6e"/>
-  <circle cx="143" cy="144" r="3" fill="#c9a227"/>
-  <path d="M30 175 Q100 155 170 175 L165 195 Q100 175 35 195 Z" fill="#c41e3a"/>
-  <text x="100" y="188" text-anchor="middle" fill="#fff" font-family="Georgia,serif" font-size="10" font-weight="600">EDUCATION WITH GODLINESS</text>
-  <text x="100" y="55" text-anchor="middle" fill="#1a3a6e" font-family="Georgia,serif" font-size="14" font-weight="700">MATOGUN</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" fill="none">
+  <circle cx="100" cy="88" r="72" fill="#1a3a6e"/>
+  <circle cx="100" cy="88" r="64" stroke="#c9a227" stroke-width="3" fill="#e8f0fa"/>
+  <rect x="78" y="68" width="44" height="32" rx="2" fill="#fff" stroke="#1a3a6e" stroke-width="2"/>
+  <line x1="100" y1="68" x2="100" y2="100" stroke="#1a3a6e" stroke-width="1.5"/>
+  <line x1="108" y1="64" x2="125" y2="51" stroke="#c9a227" stroke-width="3" stroke-linecap="round"/>
+  <rect x="62" y="108" width="28" height="18" rx="1" fill="#fff" stroke="#1a3a6e" stroke-width="1.5"/>
+  <rect x="60" y="126" width="32" height="3" rx="1" fill="#1a3a6e"/>
+  <path d="M118 114 L148 124 L118 134 L88 124 Z" fill="#1a3a6e"/>
+  <rect x="142" y="124" width="2" height="14" fill="#1a3a6e"/>
+  <circle cx="143" cy="140" r="3" fill="#c9a227"/>
+  <path d="M28 168 Q100 150 172 168 L166 188 Q100 168 34 188 Z" fill="#c41e3a"/>
+  <text x="100" y="180" text-anchor="middle" fill="#fff" font-family="Georgia,serif" font-size="9" font-weight="600">EDUCATION WITH GODLINESS</text>
 </svg>

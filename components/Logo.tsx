@@ -38,13 +38,16 @@ export function Logo({
     />
   );
 
+  // Header always shows short name (KMS) — full name is for page titles & footer
+  const displayName = SCHOOL.shortName;
+
   const content =
     variant === "mark" ? (
       mark
     ) : variant === "text" ? (
       <div className={`min-w-0 ${textColor}`}>
         <p className={`font-serif font-semibold leading-tight truncate ${s.text}`}>
-          {SCHOOL.shortName}
+          {displayName}
         </p>
         <p className={`${s.sub} ${muted} leading-tight truncate`}>{SCHOOL.motto}</p>
       </div>
@@ -53,7 +56,7 @@ export function Logo({
         {mark}
         <div className={`min-w-0 ${textColor}`}>
           <p className={`font-serif font-semibold leading-tight truncate ${s.text}`}>
-            {size === "sm" ? SCHOOL.shortName : SCHOOL.name}
+            {displayName}
           </p>
           <p className={`${s.sub} ${muted} leading-tight truncate hidden sm:block`}>
             {SCHOOL.motto}
