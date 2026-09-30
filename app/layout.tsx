@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     default: `${SCHOOL.name} | ${SCHOOL.motto}`,
     template: `%s | ${SCHOOL.shortName}`,
   },
-  description: `${SCHOOL.fullNameWithLocation} — ${SCHOOL.tagline}. Online admissions, results, parent & staff portals.`,
+  description: `${SCHOOL.name} — ${SCHOOL.tagline}. Online admissions, results, parent & staff portals.`,
   icons: {
     icon: "/logo-icon.png",
     apple: "/logo-icon.png",
