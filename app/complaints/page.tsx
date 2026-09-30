@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import Link from "next/link";
+import { PublicHeader } from "@/components/PublicHeader";
 
 export default function ComplaintsPage() {
   const [loading, setLoading] = useState(false);
@@ -35,14 +35,7 @@ export default function ComplaintsPage() {
 
   return (
     <main className="min-h-screen bg-paper text-ink">
-      <header className="bg-navy text-paper px-4 sm:px-8 py-5 flex justify-between">
-        <Link href="/" className="font-serif text-lg">
-          Force Schools
-        </Link>
-        <Link href="/login" className="text-sm border border-gold px-3 py-1">
-          Portal
-        </Link>
-      </header>
+      <PublicHeader />
       <div className="max-w-lg mx-auto px-4 py-10">
         <h1 className="font-serif text-3xl mb-2">Complaint / Feedback</h1>
         <p className="text-sm text-ink/60 mb-6">
