@@ -29,7 +29,7 @@ const PORTAL_RULES: Array<{ prefix: string; roles: string[] }> = [
 ];
 
 async function getRoleFromCookie(req: NextRequest): Promise<string | null> {
-  const token = req.cookies.get("force_schools_session")?.value;
+  const token = req.cookies.get("kms_session")?.value;
   if (!token) return null;
   try {
     const secret = new TextEncoder().encode(process.env.SESSION_SECRET || "");
@@ -67,5 +67,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|logo.svg|logo.png).*)"],
 };
