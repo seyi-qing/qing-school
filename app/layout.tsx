@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
+import { SCHOOL } from "@/lib/school-config";
 
 // Fraunces is a variable font — do NOT pass a discrete weight array.
-// Specifying weights can crash next/font on Vercel (Cannot read properties of null).
 const fraunces = Fraunces({
   subsets: ["latin"],
   variable: "--font-fraunces",
@@ -17,8 +17,20 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Force Schools | School Management System",
-  description: "Admin, Teacher, Student and Parent portals for Force Schools.",
+  title: {
+    default: `${SCHOOL.name} | ${SCHOOL.motto}`,
+    template: `%s | ${SCHOOL.shortName}`,
+  },
+  description: `${SCHOOL.fullNameWithLocation} — ${SCHOOL.tagline}. Online admissions, results, parent & staff portals.`,
+  icons: {
+    icon: "/logo-icon.png",
+    apple: "/logo-icon.png",
+  },
+  openGraph: {
+    title: SCHOOL.name,
+    description: SCHOOL.tagline,
+    siteName: SCHOOL.name,
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -8,7 +8,7 @@ import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import type { Role } from "@prisma/client";
 
-const COOKIE_NAME = "force_schools_session";
+const COOKIE_NAME = "kms_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 function getSecretKey() {
@@ -52,7 +52,7 @@ export async function createSession(payload: SessionPayload) {
   });
 }
 
-export function destroySession() {
+export async function destroySession() {
   cookies().delete(COOKIE_NAME);
 }
 
