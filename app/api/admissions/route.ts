@@ -19,7 +19,7 @@ const ApplicationSchema = z.object({
 
 async function nextAdmissionNumber() {
   const year = new Date().getFullYear();
-  const prefix = `FS/${year}/`;
+  const prefix = `KMS/${year}/`;
   const last = await prisma.student.findFirst({
     where: { admissionNumber: { startsWith: prefix } },
     orderBy: { admissionNumber: "desc" },
@@ -40,51 +40,34 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const parsed = ApplicationSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0]?.message || "Invalid application" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
-
-  const d = parsed.data;
+  const data = parsed.data;
   const admissionNumber = await nextAdmissionNumber();
-
-  const medicalNotes = [
-    `Parent/Guardian: ${d.parentName}`,
-    `Phone: ${d.parentPhone}`,
-    d.parentEmail ? `Email: ${d.parentEmail}` : null,
-    d.desiredClass ? `Desired class: ${d.desiredClass}` : null,
-    "Source: Online admissions form",
-  ]
-    .filter(Boolean)
-    .join(" | ");
 
   const student = await prisma.student.create({
     data: {
       admissionNumber,
-      firstName: d.firstName,
-      lastName: d.lastName,
-      otherNames: d.otherNames || undefined,
-      gender: d.gender,
-      dateOfBirth: d.dateOfBirth ? new Date(d.dateOfBirth) : undefined,
-      address: d.address || undefined,
-      previousSchool: d.previousSchool || undefined,
-      medicalNotes,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      otherNames: data.otherNames || null,
+      gender: data.gender || null,
+      dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
+      address: data.address || null,
+      previousSchool: data.previousSchool || null,
       status: "APPLIED",
     },
   });
 
   await logAudit({
-    action: "ONLINE_ADMISSION_APPLICATION",
-    entity: "Student",
+    action: "ADMISSION_APPLICATION",
+    entityType: "Student",
     entityId: student.id,
-    details: { admissionNumber, parentPhone: d.parentPhone },
+    detail: JSON.stringify({ admissionNumber, parentName: data.parentName, parentPhone: data.parentPhone }),
   });
 
   return NextResponse.json({
-    ok: true,
     admissionNumber,
-    message:
-      "Application received. The school office will contact you. Keep your application number.",
+    message: `Application received for ${data.firstName} ${data.lastName}. Save your admission number for follow-up.`,
   });
 }
