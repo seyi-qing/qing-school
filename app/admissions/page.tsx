@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import { PublicHeader } from "@/components/PublicHeader";
 
 export default function AdmissionsPage() {
   const [loading, setLoading] = useState(false);
@@ -36,14 +37,7 @@ export default function AdmissionsPage() {
 
   return (
     <main className="min-h-screen bg-paper text-ink">
-      <header className="bg-navy text-paper px-4 sm:px-8 py-5 flex items-center justify-between">
-        <Link href="/" className="font-serif text-lg">
-          Force Schools
-        </Link>
-        <Link href="/login" className="text-sm border border-gold px-3 py-1 hover:bg-gold hover:text-navy">
-          Portal Login
-        </Link>
-      </header>
+      <PublicHeader />
 
       <div className="max-w-xl mx-auto px-4 py-10">
         <h1 className="font-serif text-3xl mb-2">Online Admission</h1>
