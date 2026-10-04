@@ -6,15 +6,20 @@ import { can } from "@/lib/permissions";
 import { gradeFor } from "@/lib/grading";
 import { logAudit } from "@/lib/audit";
 
+/** Nigerian continuous assessment defaults: CA1 20 + CA2 20 + Exam 60 = 100 */
+export const CA1_MAX = 20;
+export const CA2_MAX = 20;
+export const EXAM_MAX = 60;
+
 const ScoreEntrySchema = z.object({
   armSubjectId: z.string(),
   termId: z.string(),
   scores: z.array(
     z.object({
       studentId: z.string(),
-      ca1: z.coerce.number().min(0).max(100),
-      ca2: z.coerce.number().min(0).max(100),
-      exam: z.coerce.number().min(0).max(100),
+      ca1: z.coerce.number().min(0).max(CA1_MAX),
+      ca2: z.coerce.number().min(0).max(CA2_MAX),
+      exam: z.coerce.number().min(0).max(EXAM_MAX),
     })
   ),
 });
@@ -31,7 +36,7 @@ export async function GET(req: Request) {
   }
 
   const scores = await prisma.score.findMany({ where: { armSubjectId, termId } });
-  return NextResponse.json({ scores });
+  return NextResponse.json({ scores, limits: { ca1: CA1_MAX, ca2: CA2_MAX, exam: EXAM_MAX } });
 }
 
 export async function POST(req: Request) {
@@ -43,7 +48,16 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const parsed = ScoreEntrySchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid score data." }, { status: 400 });
+    const issue = parsed.error.issues[0];
+    return NextResponse.json(
+      {
+        error:
+          issue?.message?.includes("Number") || issue?.code === "too_big"
+            ? `Invalid continuous assessment: CA1 max ${CA1_MAX}, CA2 max ${CA2_MAX}, Exam max ${EXAM_MAX}.`
+            : "Invalid score data.",
+      },
+      { status: 400 }
+    );
   }
   const { armSubjectId, termId, scores } = parsed.data;
 
@@ -51,8 +65,22 @@ export async function POST(req: Request) {
     const total = s.ca1 + s.ca2 + s.exam;
     const { grade, remark } = await gradeFor(total);
     await prisma.score.upsert({
-      where: { studentId_armSubjectId_termId: { studentId: s.studentId, armSubjectId, termId } },
-      update: { ca1: s.ca1, ca2: s.ca2, exam: s.exam, total, grade, remark, enteredBy: session.userId },
+      where: {
+        studentId_armSubjectId_termId: {
+          studentId: s.studentId,
+          armSubjectId,
+          termId,
+        },
+      },
+      update: {
+        ca1: s.ca1,
+        ca2: s.ca2,
+        exam: s.exam,
+        total,
+        grade,
+        remark,
+        enteredBy: session.userId,
+      },
       create: {
         studentId: s.studentId,
         armSubjectId,
@@ -72,8 +100,8 @@ export async function POST(req: Request) {
     userId: session.userId,
     action: "ENTER_SCORES",
     entity: "Score",
-    details: { armSubjectId, termId, count: scores.length },
+    details: JSON.stringify({ armSubjectId, termId, count: scores.length }),
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, count: scores.length });
 }

@@ -10,6 +10,7 @@ const UpsertSchema = z.object({
   armSubjectId: z.string(),
   dayOfWeek: z.coerce.number().int().min(0).max(4),
   period: z.coerce.number().int().min(1).max(10),
+  force: z.boolean().optional(),
 });
 
 export async function GET(req: Request) {
@@ -42,13 +43,60 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid slot data" }, { status: 400 });
   }
 
-  const { armId, armSubjectId, dayOfWeek, period } = parsed.data;
+  const { armId, armSubjectId, dayOfWeek, period, force } = parsed.data;
 
   const link = await prisma.armSubject.findFirst({
     where: { id: armSubjectId, armId },
+    include: {
+      subject: true,
+      teacher: true,
+      arm: { include: { schoolClass: true } },
+    },
   });
   if (!link) {
     return NextResponse.json({ error: "Subject not linked to this arm" }, { status: 400 });
+  }
+
+  let conflicts: {
+    armLabel: string;
+    subjectName: string;
+    teacherName: string;
+  }[] = [];
+
+  if (link.teacherId) {
+    const teacherSlots = await prisma.timetableSlot.findMany({
+      where: {
+        dayOfWeek,
+        period,
+        NOT: { armId },
+        armSubject: { teacherId: link.teacherId },
+      },
+      include: {
+        arm: { include: { schoolClass: true } },
+        armSubject: {
+          include: { subject: true, teacher: true },
+        },
+      },
+    });
+
+    conflicts = teacherSlots.map((s) => ({
+      armLabel: `${s.arm.schoolClass.name} ${s.arm.name}`,
+      subjectName: s.armSubject.subject.name,
+      teacherName: s.armSubject.teacher
+        ? `${s.armSubject.teacher.firstName} ${s.armSubject.teacher.lastName}`
+        : "Teacher",
+    }));
+
+    if (conflicts.length > 0 && !force) {
+      return NextResponse.json(
+        {
+          error: "Teacher timetable conflict",
+          conflicts,
+          message: `${conflicts[0].teacherName} is already assigned to ${conflicts[0].subjectName} in ${conflicts[0].armLabel} at this period.`,
+        },
+        { status: 409 }
+      );
+    }
   }
 
   const slot = await prisma.timetableSlot.upsert({
@@ -64,9 +112,10 @@ export async function POST(req: Request) {
     action: "UPSERT_TIMETABLE_SLOT",
     entity: "TimetableSlot",
     entityId: slot.id,
+    details: conflicts.length ? JSON.stringify({ forced: !!force, conflicts }) : undefined,
   });
 
-  return NextResponse.json({ slot });
+  return NextResponse.json({ slot, conflicts });
 }
 
 export async function DELETE(req: Request) {
