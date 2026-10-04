@@ -5,7 +5,7 @@ import { DEFAULT_GRADE_BANDS } from "../lib/grading";
 const prisma = new PrismaClient();
 const DEMO_PASSWORD = "Password123!";
 
-/** Prefer KMS emails; migrate legacy @forceschools.test if present. */
+/** Prefer KMS emails; migrate legacy @kms.legacy.test if present. */
 async function upsertUser(email: string, role: any, legacyEmail?: string) {
   const passwordHash = await hashPassword(DEMO_PASSWORD);
 
@@ -37,11 +37,35 @@ async function main() {
     await prisma.gradeBand.createMany({ data: DEFAULT_GRADE_BANDS });
   }
 
-  const session = await prisma.session.upsert({
-    where: { name: "2025/2026" },
-    update: {},
-    create: { name: "2025/2026", isCurrent: true },
+  const school = await prisma.school.upsert({
+    where: { slug: "kms" },
+    update: { name: "Kayvlop Magnificent School", shortName: "KMS", isDemo: false },
+    create: {
+      slug: "kms",
+      name: "Kayvlop Magnificent School",
+      shortName: "KMS",
+      motto: "Education with Godliness",
+      tagline: "Excellence in Character, Learning & Godliness",
+      primaryColor: "#1a3a6e",
+      accentColor: "#c9a227",
+      phone: "07032185227",
+      email: "kayvlopmagnificentschool@gmail.com",
+      address: "3, Olambe, Olamide Oladele Close, Matogun",
+      location: "Matogun",
+      plan: "PRO",
+      isActive: true,
+      isDemo: false,
+      maxStudents: 2000,
+    },
   });
+  const schoolId = school.id;
+
+  let session = await prisma.session.findFirst({ where: { name: "2025/2026", schoolId } });
+  if (!session) {
+    session = await prisma.session.create({
+      data: { name: "2025/2026", isCurrent: true, schoolId },
+    });
+  }
 
   let term = await prisma.term.findFirst({ where: { sessionId: session.id, name: "First Term" } });
   if (!term) {
@@ -50,25 +74,27 @@ async function main() {
     });
   }
 
-  await upsertUser("admin@kms.sch.ng", "ADMIN", "admin@forceschools.test");
-  await upsertUser("it@kms.sch.ng", "IT", "it@forceschools.test");
-  await upsertUser("secretary@kms.sch.ng", "SECRETARY", "secretary@forceschools.test");
-  await upsertUser("principal@kms.sch.ng", "PRINCIPAL", "principal@forceschools.test");
-  await upsertUser("accountant@kms.sch.ng", "ACCOUNTANT", "accountant@forceschools.test");
-  const teacherUser = await upsertUser("teacher@kms.sch.ng", "TEACHER", "teacher@forceschools.test");
-  const studentUser = await upsertUser("student@kms.sch.ng", "STUDENT", "student@forceschools.test");
-  const parentUser = await upsertUser("parent@kms.sch.ng", "PARENT", "parent@forceschools.test");
+  await upsertUser("admin@kms.sch.ng", "ADMIN", "admin@kms.legacy.test");
+  await upsertUser("it@kms.sch.ng", "IT", "it@kms.legacy.test");
+  await upsertUser("secretary@kms.sch.ng", "SECRETARY", "secretary@kms.legacy.test");
+  await upsertUser("principal@kms.sch.ng", "PRINCIPAL", "principal@kms.legacy.test");
+  await upsertUser("accountant@kms.sch.ng", "ACCOUNTANT", "accountant@kms.legacy.test");
+  const teacherUser = await upsertUser("teacher@kms.sch.ng", "TEACHER", "teacher@kms.legacy.test");
+  const studentUser = await upsertUser("student@kms.sch.ng", "STUDENT", "student@kms.legacy.test");
+  const parentUser = await upsertUser("parent@kms.sch.ng", "PARENT", "parent@kms.legacy.test");
 
   const jss1 = await prisma.schoolClass
     .upsert({
       where: { id: "seed-jss1" },
-      update: {},
-      create: { id: "seed-jss1", name: "JSS 1", order: 1 },
+      update: { schoolId },
+      create: { id: "seed-jss1", name: "JSS 1", order: 1, schoolId },
     })
     .catch(async () => {
       const existing = await prisma.schoolClass.findFirst({ where: { name: "JSS 1" } });
-      if (existing) return existing;
-      return prisma.schoolClass.create({ data: { name: "JSS 1", order: 1 } });
+      if (existing) {
+        return prisma.schoolClass.update({ where: { id: existing.id }, data: { schoolId } });
+      }
+      return prisma.schoolClass.create({ data: { name: "JSS 1", order: 1, schoolId } });
     });
 
   let jss1Gold = await prisma.arm.findFirst({ where: { schoolClassId: jss1.id, name: "Gold" } });
@@ -100,7 +126,7 @@ async function main() {
 
   const teacher = await prisma.staff.upsert({
     where: { userId: teacherUser.id },
-    update: {},
+    update: { schoolId },
     create: {
       staffId: "KMS-STF-0001",
       userId: teacherUser.id,
@@ -109,6 +135,7 @@ async function main() {
       category: "TEACHING",
       designation: "Class Teacher",
       monthlySalary: 120000,
+      schoolId,
     },
   });
 
@@ -131,6 +158,7 @@ async function main() {
         armId: jss1Gold.id,
         status: "ACTIVE",
         userId: studentUser.id,
+        schoolId,
       },
     });
   } else {
@@ -141,6 +169,7 @@ async function main() {
         userId: studentUser.id,
         status: "ACTIVE",
         armId: jss1Gold.id,
+        schoolId,
       },
     });
   }
@@ -202,17 +231,15 @@ async function main() {
         body: "Portal is live. Use demo accounts to explore each role. Motto: Education with Godliness.",
         audience: "ALL",
         publishToWeb: true,
-      },
-    });
-  } else {
-    await prisma.notice.updateMany({
-      where: { title: { contains: "Force Schools" } },
-      data: {
-        title: "Welcome to Kayvlop Magnificent School",
-        body: "Portal is live. Use demo accounts to explore each role. Motto: Education with Godliness.",
+        schoolId,
       },
     });
   }
+
+  await prisma.user.updateMany({ where: { schoolId: null, role: { not: "PLATFORM_ADMIN" } }, data: { schoolId } });
+  await prisma.student.updateMany({ where: { schoolId: null }, data: { schoolId } });
+  await prisma.staff.updateMany({ where: { schoolId: null }, data: { schoolId } });
+  await prisma.schoolClass.updateMany({ where: { schoolId: null }, data: { schoolId } });
 
   console.log("\nSeed complete.");
   console.log("Demo password for all accounts:", DEMO_PASSWORD);
