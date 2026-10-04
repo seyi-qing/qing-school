@@ -34,6 +34,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/reports", label: "Reports", roles: ["ADMIN", "IT", "PRINCIPAL", "ACCOUNTANT", "SECRETARY"] },
   { href: "/settings/report-template", label: "Report designer", roles: ["ADMIN", "IT", "PRINCIPAL"] },
   { href: "/settings", label: "Admin Settings", roles: ["ADMIN", "IT"] },
+  { href: "/settings/go-live", label: "Go-live checklist", roles: ["ADMIN", "IT"] },
 ];
 
 export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
