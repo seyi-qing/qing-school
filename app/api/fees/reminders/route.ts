@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { sendSms } from "@/lib/integrations/messaging";
 import { formatNaira } from "@/lib/format";
+import { SCHOOL } from "@/lib/school-config";
 
 const PHONE_RE = /(?:\+?234|0)?[789][01]\d{8}/;
 
@@ -38,7 +39,7 @@ export async function POST() {
       continue;
     }
     const bal = inv.totalAmount - inv.amountPaid;
-    const body = `Force Schools: Fee reminder for ${inv.student.firstName}. Balance ${formatNaira(bal)}. Please pay at the office or online portal.`;
+    const body = `${SCHOOL.shortName}: Fee reminder for ${inv.student.firstName}. Balance ${formatNaira(bal)}. Please pay at the office or online portal.`;
     const result = await sendSms({ to: phone, body });
     if (result.ok) sent++;
     else skipped++;
