@@ -16,6 +16,7 @@ type Props = {
     address: string;
     previousSchool: string;
     medicalNotes: string;
+    guardianPhone: string;
     armId: string;
     status: string;
   };
@@ -47,6 +48,7 @@ export function StudentEditForm({ studentId, arms, initial }: Props) {
       address: form.address.trim() || undefined,
       previousSchool: form.previousSchool.trim() || undefined,
       medicalNotes: form.medicalNotes.trim() || undefined,
+      guardianPhone: form.guardianPhone.trim() || undefined,
       armId: form.armId || null,
       status: form.status,
     };
@@ -135,6 +137,11 @@ export function StudentEditForm({ studentId, arms, initial }: Props) {
           label="Previous school"
           value={form.previousSchool}
           onChange={(v) => set("previousSchool", v)}
+        />
+        <Field
+          label="Guardian phone"
+          value={form.guardianPhone}
+          onChange={(v) => set("guardianPhone", v)}
         />
         <div className="sm:col-span-2">
           <label className="block text-xs font-medium text-ink/70 mb-1">Medical / notes</label>
