@@ -37,6 +37,12 @@ export default async function FeesPage() {
       actions={
         <>
           <Link
+            href="/fees/structure"
+            className="text-xs sm:text-sm border border-navy text-navy px-3 py-1.5 whitespace-nowrap"
+          >
+            Fee structure
+          </Link>
+          <Link
             href="/expenses"
             className="text-xs sm:text-sm border border-line px-3 py-1.5 hover:border-navy whitespace-nowrap"
           >
