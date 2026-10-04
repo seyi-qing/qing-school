@@ -16,6 +16,7 @@ const CreateStudentSchema = z.object({
   medicalNotes: z.string().optional(),
   guardianPhone: z.string().optional(),
   armId: z.string().optional(),
+  forceAdmit: z.boolean().optional(),
 });
 
 async function generateAdmissionNumber(): Promise<string> {
@@ -75,14 +76,51 @@ export async function POST(req: Request) {
     );
   }
 
-  const admissionNumber = await generateAdmissionNumber();
   const data = parsed.data;
+
+  if (!data.forceAdmit) {
+    const candidates = await prisma.student.findMany({
+      where: {
+        status: { not: "WITHDRAWN" },
+        firstName: { equals: data.firstName.trim(), mode: "insensitive" },
+        lastName: { equals: data.lastName.trim(), mode: "insensitive" },
+      },
+      select: {
+        id: true,
+        admissionNumber: true,
+        firstName: true,
+        lastName: true,
+        status: true,
+        arm: { include: { schoolClass: true } },
+      },
+      take: 10,
+    });
+
+    if (candidates.length > 0) {
+      return NextResponse.json(
+        {
+          error: "Possible duplicate student(s) found. Confirm before admitting again.",
+          code: "DUPLICATE_NAME",
+          duplicates: candidates.map((c) => ({
+            id: c.id,
+            admissionNumber: c.admissionNumber,
+            name: `${c.lastName}, ${c.firstName}`,
+            status: c.status,
+            class: c.arm ? `${c.arm.schoolClass.name} ${c.arm.name}` : "Unassigned",
+          })),
+        },
+        { status: 409 }
+      );
+    }
+  }
+
+  const admissionNumber = await generateAdmissionNumber();
 
   const student = await prisma.student.create({
     data: {
       admissionNumber,
-      firstName: data.firstName,
-      lastName: data.lastName,
+      firstName: data.firstName.trim(),
+      lastName: data.lastName.trim(),
       otherNames: data.otherNames,
       gender: data.gender,
       dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
@@ -99,7 +137,7 @@ export async function POST(req: Request) {
     action: "CREATE_STUDENT",
     entity: "Student",
     entityId: student.id,
-    details: { admissionNumber },
+    details: { admissionNumber, forcedDuplicate: !!data.forceAdmit },
   });
 
   return NextResponse.json({ student }, { status: 201 });
