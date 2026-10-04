@@ -29,6 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/attendance", label: "Attendance", roles: ["ADMIN", "TEACHER", "IT"] },
   { href: "/exams", label: "Exams & Results", roles: ["ADMIN", "TEACHER", "PRINCIPAL"] },
   { href: "/fees", label: "Fees & Accounts", roles: ["ADMIN", "ACCOUNTANT", "SECRETARY"] },
+  { href: "/fees/structure", label: "Fee structure", roles: ["ADMIN", "ACCOUNTANT"] },
   { href: "/expenses", label: "Expenses", roles: ["ADMIN", "ACCOUNTANT"] },
   { href: "/notices", label: "Communication", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL"] },
   { href: "/cms", label: "Website CMS", roles: ["ADMIN", "IT", "SECRETARY"] },
@@ -36,6 +37,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/settings/report-template", label: "Report designer", roles: ["ADMIN", "IT", "PRINCIPAL"] },
   { href: "/settings/security", label: "Security", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "TEACHER", "ACCOUNTANT"] },
   { href: "/settings/ops", label: "Ops / SMS / Backup", roles: ["ADMIN", "IT"] },
+  { href: "/settings/audit", label: "Audit trail", roles: ["ADMIN", "IT"] },
   { href: "/settings", label: "Admin Settings", roles: ["ADMIN", "IT"] },
   { href: "/settings/go-live", label: "Go-live checklist", roles: ["ADMIN", "IT"] },
 ];
