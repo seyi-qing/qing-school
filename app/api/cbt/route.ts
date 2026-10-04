@@ -97,6 +97,37 @@ export async function GET(req: Request) {
     });
   }
 
+  if (url.searchParams.get("attempts") === "1") {
+    if (!["ADMIN", "IT", "TEACHER", "PRINCIPAL"].includes(session.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const pendingOnly = url.searchParams.get("pending") === "1";
+    const attempts = await prisma.cbtAttempt.findMany({
+      where: pendingOnly ? { needsGrading: true } : undefined,
+      include: {
+        student: { select: { firstName: true, lastName: true, admissionNumber: true } },
+        exam: { select: { title: true } },
+      },
+      orderBy: { submittedAt: "desc" },
+      take: 100,
+    });
+    return NextResponse.json({
+      attempts: attempts.map((a) => ({
+        id: a.id,
+        examTitle: a.exam.title,
+        studentName: `${a.student.lastName}, ${a.student.firstName}`,
+        admissionNumber: a.student.admissionNumber,
+        score: a.score,
+        total: a.total,
+        percent: a.percent,
+        needsGrading: a.needsGrading,
+        submittedAt: a.submittedAt.toISOString(),
+        answers: JSON.parse(a.answersJson || "{}"),
+        proctorEvents: a.proctorJson ? (JSON.parse(a.proctorJson) as unknown[]).length : 0,
+      })),
+    });
+  }
+
   const exams = await prisma.cbtExam.findMany({ orderBy: { createdAt: "desc" }, take: 50 });
   return NextResponse.json({ exams });
 }
@@ -107,7 +138,6 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => null);
 
-  // Save to question bank
   if (body?.action === "bank") {
     if (!["ADMIN", "IT", "TEACHER", "PRINCIPAL"].includes(session.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -128,7 +158,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ item }, { status: 201 });
   }
 
-  // Import bank question into exam
   if (body?.action === "importBank" && body?.examId && body?.bankId) {
     if (!["ADMIN", "IT", "TEACHER", "PRINCIPAL"].includes(session.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -151,7 +180,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ question: q }, { status: 201 });
   }
 
-  // Student submit
   if (body?.answers && body?.examId) {
     if (session.role !== "STUDENT") {
       return NextResponse.json({ error: "Only students submit" }, { status: 403 });
@@ -179,7 +207,6 @@ export async function POST(req: Request) {
       const ans = parsed.data.answers[q.id];
       if (q.type === "ESSAY") {
         pendingEssay++;
-        // Essays: 0 auto marks; staff grades later via pending flag
         continue;
       }
       if (typeof ans === "number" && ans === q.correctIndex) {
@@ -216,7 +243,6 @@ export async function POST(req: Request) {
     });
   }
 
-  // Add question to exam
   if (body?.prompt && body?.examId) {
     if (!["ADMIN", "IT", "TEACHER", "PRINCIPAL"].includes(session.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -246,6 +272,36 @@ export async function POST(req: Request) {
     return NextResponse.json({ question: q }, { status: 201 });
   }
 
+  if (body?.action === "gradeAttempt" && body?.attemptId) {
+    if (!["ADMIN", "IT", "TEACHER", "PRINCIPAL"].includes(session.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const attemptId = String(body.attemptId);
+    const score = Number(body.score);
+    const total = Number(body.total);
+    if (!Number.isFinite(score) || !Number.isFinite(total) || total <= 0) {
+      return NextResponse.json({ error: "Invalid score/total" }, { status: 400 });
+    }
+    const percent = Math.round((score / total) * 100);
+    const attempt = await prisma.cbtAttempt.update({
+      where: { id: attemptId },
+      data: {
+        score,
+        total,
+        percent: Math.min(100, Math.max(0, percent)),
+        needsGrading: false,
+      },
+    });
+    await logAudit({
+      userId: session.userId,
+      action: "GRADE_CBT_ATTEMPT",
+      entity: "CbtAttempt",
+      entityId: attempt.id,
+      details: { score, total, percent },
+    });
+    return NextResponse.json({ attempt });
+  }
+
   if (body?.toggleExamId) {
     if (!["ADMIN", "IT", "TEACHER", "PRINCIPAL"].includes(session.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -259,7 +315,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ exam: updated });
   }
 
-  // Create exam
   if (!["ADMIN", "IT", "TEACHER", "PRINCIPAL"].includes(session.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
