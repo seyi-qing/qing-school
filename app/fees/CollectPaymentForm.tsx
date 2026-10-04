@@ -16,16 +16,27 @@ export function CollectPaymentForm({
   const [amount, setAmount] = useState(maxAmount);
   const [method, setMethod] = useState<"CASH" | "BANK_TRANSFER">("CASH");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   async function submit() {
     setSubmitting(true);
-    await fetch("/api/fees/payments", {
+    setError("");
+    const res = await fetch("/api/fees/payments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ invoiceId, amount, method }),
     });
+    const data = await res.json().catch(() => ({}));
     setSubmitting(false);
+    if (!res.ok) {
+      setError(data.error || "Payment failed");
+      return;
+    }
     setOpen(false);
+    if (data.payment?.id) {
+      router.push(`/fees/receipt/${data.payment.id}`);
+      return;
+    }
     router.refresh();
   }
 
@@ -64,8 +75,12 @@ export function CollectPaymentForm({
           >
             {submitting ? "..." : "OK"}
           </button>
+          <button type="button" onClick={() => setOpen(false)} className="text-xs underline">
+            Cancel
+          </button>
         </div>
       )}
+      {error && <p className="text-xs text-brick">{error}</p>}
       <PayOnlineButton invoiceId={invoiceId} maxAmount={maxAmount} />
     </div>
   );

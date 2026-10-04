@@ -4,7 +4,9 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
-import { sendBulkSms } from "@/lib/integrations/messaging";
+import { sendSms } from "@/lib/integrations/messaging";
+import { extractPhone } from "@/lib/phone";
+import { SCHOOL } from "@/lib/school-config";
 
 const NoticeSchema = z.object({
   title: z.string().min(1),
@@ -34,15 +36,46 @@ export async function POST(req: Request) {
 
   const notice = await prisma.notice.create({ data: { ...data, createdBy: session.userId } });
 
+  let smsSent = 0;
+  let smsSkipped = 0;
+
   if (alsoSendSms) {
-    const staffWithPhones = await prisma.staff.findMany({ where: { phone: { not: null } } });
-    await sendBulkSms(
-      staffWithPhones.map((s) => s.phone!).filter(Boolean),
-      `${data.title}: ${data.body}`
-    );
+    const smsBody = `${SCHOOL.shortName}: ${data.title}. ${data.body}`.slice(0, 320);
+
+    if (data.audience === "STAFF" || data.audience === "ALL") {
+      const staffWithPhones = await prisma.staff.findMany({ where: { phone: { not: null } } });
+      for (const s of staffWithPhones) {
+        if (!s.phone) continue;
+        const r = await sendSms({ to: s.phone, body: smsBody });
+        if (r.ok) smsSent++;
+        else smsSkipped++;
+      }
+    }
+
+    if (data.audience === "PARENTS" || data.audience === "ALL") {
+      const students = await prisma.student.findMany({
+        where: { status: "ACTIVE" },
+        select: { guardianPhone: true, medicalNotes: true },
+      });
+      const seen = new Set<string>();
+      for (const s of students) {
+        const phone = extractPhone(s.guardianPhone, s.medicalNotes);
+        if (!phone || seen.has(phone)) continue;
+        seen.add(phone);
+        const r = await sendSms({ to: phone, body: smsBody });
+        if (r.ok) smsSent++;
+        else smsSkipped++;
+      }
+    }
   }
 
-  await logAudit({ userId: session.userId, action: "POST_NOTICE", entity: "Notice", entityId: notice.id });
+  await logAudit({
+    userId: session.userId,
+    action: "POST_NOTICE",
+    entity: "Notice",
+    entityId: notice.id,
+    details: { alsoSendSms, smsSent, smsSkipped, audience: data.audience },
+  });
 
-  return NextResponse.json({ notice }, { status: 201 });
+  return NextResponse.json({ notice, smsSent, smsSkipped }, { status: 201 });
 }
