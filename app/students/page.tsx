@@ -129,7 +129,7 @@ export default async function StudentsPage({
                     href={`/students/${s.id}`}
                     className="text-navy underline text-sm hover:text-gold"
                   >
-                    View
+                    {canAdmit && !s.arm ? "Assign class" : "View"}
                   </Link>
                   {s.status === "APPLIED" && canAdmit && (
                     <ApproveStudentButton studentId={s.id} />
