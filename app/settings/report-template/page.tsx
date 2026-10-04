@@ -23,14 +23,19 @@ export default async function ReportTemplatePage() {
         showPosition: true,
         showAttendance: true,
         principalTitle: "Principal",
+        logoUrl: "/logo.svg",
       };
 
   return (
-    <PortalShell role={session.role} title="Report card designer" subtitle="Header, motto, footer options">
+    <PortalShell
+      role={session.role}
+      title="Report card designer"
+      subtitle="Logo, colours, section order — used when printing report cards"
+    >
       <ReportTemplateForm initial={config} />
       <p className="text-xs text-ink/50 mt-4">
-        Applied when printing student report cards. Not a full drag-and-drop layout editor — that needs a
-        dedicated product.
+        Drag sections to reorder. Use the school logo button or upload an image. This controls the printed
+        card layout; it is not a freeform Canva-style designer.
       </p>
     </PortalShell>
   );
