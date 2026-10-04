@@ -3,14 +3,32 @@ import { requireSession } from "@/lib/require-session";
 import { PortalShell } from "@/components/PortalShell";
 import { can, homeRouteForRole } from "@/lib/permissions";
 import { formatDate } from "@/lib/format";
+import { SCHOOL } from "@/lib/school-config";
 import { redirect } from "next/navigation";
 import { NoticeForm } from "./NoticeForm";
 
 export const dynamic = "force-dynamic";
 
+function rebrand(text: string) {
+  return text
+    .replace(/Force Schools/gi, SCHOOL.name)
+    .replace(/\bFS\b/g, SCHOOL.shortName);
+}
+
 export default async function NoticesPage() {
   const session = await requireSession();
   if (!can(session.role, "MANAGE_NOTICES")) redirect(homeRouteForRole(session.role));
+
+  // Permanently rewrite any leftover Force Schools notices in DB
+  await prisma.notice.updateMany({
+    where: {
+      OR: [{ title: { contains: "Force Schools" } }, { body: { contains: "Force Schools" } }],
+    },
+    data: {
+      title: `Welcome to ${SCHOOL.name}`,
+      body: "Portal is live. Staff and parents can log in with their accounts. Motto: Education with Godliness.",
+    },
+  });
 
   const [notices, complaints] = await Promise.all([
     prisma.notice.findMany({
@@ -50,8 +68,8 @@ export default async function NoticesPage() {
                 <tr key={n.id}>
                   <td className="text-xs">{formatDate(n.createdAt)}</td>
                   <td>
-                    <div className="font-medium">{n.title}</div>
-                    <div className="text-xs text-ink/50 line-clamp-2">{n.body}</div>
+                    <div className="font-medium">{rebrand(n.title)}</div>
+                    <div className="text-xs text-ink/50 line-clamp-2">{rebrand(n.body)}</div>
                   </td>
                   <td>{n.audience}</td>
                   <td>{n.publishToWeb ? "Yes" : "No"}</td>
@@ -86,8 +104,10 @@ export default async function NoticesPage() {
               <tr key={c.id}>
                 <td className="text-xs whitespace-nowrap">{formatDate(c.createdAt)}</td>
                 <td>
-                  <div className="font-medium">{c.title}</div>
-                  <pre className="text-xs text-ink/60 whitespace-pre-wrap font-sans mt-1">{c.body}</pre>
+                  <div className="font-medium">{rebrand(c.title)}</div>
+                  <pre className="text-xs text-ink/60 whitespace-pre-wrap font-sans mt-1">
+                    {rebrand(c.body)}
+                  </pre>
                 </td>
               </tr>
             ))}

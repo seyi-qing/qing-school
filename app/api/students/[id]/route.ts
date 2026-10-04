@@ -44,12 +44,17 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const body = await req.json().catch(() => ({}));
   const allowedFields = [
     "firstName", "lastName", "otherNames", "gender", "address",
-    "previousSchool", "medicalNotes", "armId", "status",
+    "previousSchool", "medicalNotes", "status",
   ] as const;
 
   const data: Record<string, unknown> = {};
   for (const field of allowedFields) {
     if (field in body) data[field] = body[field];
+  }
+
+  // Allow assign / clear class arm (empty string → null)
+  if ("armId" in body) {
+    data.armId = body.armId === "" || body.armId === null ? null : body.armId;
   }
 
   const student = await prisma.student.update({ where: { id: params.id }, data });
