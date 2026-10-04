@@ -7,14 +7,24 @@ import { SCHOOL } from "@/lib/school-config";
 
 const PHONE_RE = /(?:\+?234|0)?[789][01]\d{8}/;
 
-function extractPhone(notes: string | null | undefined): string | null {
-  if (!notes) return null;
-  const m = notes.match(PHONE_RE);
-  if (!m) return null;
-  let p = m[0].replace(/\s/g, "");
+function normalizePhone(raw: string): string {
+  let p = raw.replace(/\s|-/g, "");
   if (p.startsWith("0")) p = "234" + p.slice(1);
   if (!p.startsWith("234") && !p.startsWith("+")) p = "234" + p;
   return p.startsWith("+") ? p : "+" + p;
+}
+
+function extractPhone(
+  guardianPhone: string | null | undefined,
+  notes: string | null | undefined
+): string | null {
+  if (guardianPhone && PHONE_RE.test(guardianPhone.replace(/\s/g, ""))) {
+    return normalizePhone(guardianPhone);
+  }
+  if (!notes) return null;
+  const m = notes.match(PHONE_RE);
+  if (!m) return null;
+  return normalizePhone(m[0]);
 }
 
 export async function POST() {
@@ -31,9 +41,10 @@ export async function POST() {
 
   let sent = 0;
   let skipped = 0;
+  const debtors = unpaid.length;
 
   for (const inv of unpaid) {
-    const phone = extractPhone(inv.student.medicalNotes);
+    const phone = extractPhone(inv.student.guardianPhone, inv.student.medicalNotes);
     if (!phone) {
       skipped++;
       continue;
@@ -46,8 +57,9 @@ export async function POST() {
   }
 
   return NextResponse.json({
-    message: `Reminders: ${sent} sent, ${skipped} skipped (no phone / SMS failed). Put phone in student notes e.g. Phone: 0803...`,
+    message: `Reminders: ${sent} sent, ${skipped} skipped (no phone / SMS failed).`,
+    debtors,
     sent,
-    skipped,
+    skippedNoPhoneOrFailed: skipped,
   });
 }
