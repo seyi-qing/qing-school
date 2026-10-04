@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { PortalShell } from "@/components/PortalShell";
 import { ApproveStudentButton } from "@/components/ApproveStudentButton";
+import { BulkAssignClass } from "@/components/BulkAssignClass";
 import { can, homeRouteForRole } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 
@@ -22,7 +23,7 @@ export default async function StudentsPage({
   const statusFilter = searchParams.status || "ACTIVE";
   const canAdmit = can(session.role, "MANAGE_STUDENTS");
 
-  const [students, appliedCount] = await Promise.all([
+  const [students, appliedCount, arms] = await Promise.all([
     prisma.student.findMany({
       where: {
         status: statusFilter,
@@ -41,6 +42,10 @@ export default async function StudentsPage({
       take: 200,
     }),
     prisma.student.count({ where: { status: "APPLIED" } }),
+    prisma.arm.findMany({
+      include: { schoolClass: true },
+      orderBy: [{ schoolClass: { order: "asc" } }, { name: "asc" }],
+    }),
   ]);
 
   const tabs = [
@@ -57,12 +62,20 @@ export default async function StudentsPage({
       subtitle={`${students.length} shown`}
       actions={
         canAdmit ? (
-          <Link
-            href="/students/new"
-            className="bg-navy text-paper text-sm px-4 py-2 hover:bg-navy-light"
-          >
-            + Admit Student
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={`/api/students/export?status=${statusFilter}`}
+              className="border border-navy text-navy text-sm px-3 py-2 hover:bg-navy hover:text-paper"
+            >
+              Export CSV
+            </a>
+            <Link
+              href="/students/new"
+              className="bg-navy text-paper text-sm px-4 py-2 hover:bg-navy-light"
+            >
+              + Admit Student
+            </Link>
+          </div>
         ) : undefined
       }
     >
@@ -96,7 +109,46 @@ export default async function StudentsPage({
         </button>
       </form>
 
-      <div className="ledger-block !p-0 overflow-x-auto">
+      {canAdmit && statusFilter === "ACTIVE" && (
+        <BulkAssignClass
+          arms={arms.map((a) => ({
+            id: a.id,
+            label: `${a.schoolClass.name} ${a.name}`,
+          }))}
+          students={students.map((s) => ({
+            id: s.id,
+            name: `${s.lastName}, ${s.firstName}`,
+            admissionNumber: s.admissionNumber,
+            unassigned: !s.armId,
+          }))}
+        />
+      )}
+
+      <div className="md:hidden space-y-2 mb-4">
+        {students.map((s) => (
+          <Link
+            key={s.id}
+            href={`/students/${s.id}`}
+            className="block ledger-block !p-3 hover:border-navy"
+          >
+            <div className="flex justify-between gap-2">
+              <span className="font-medium text-sm">
+                {s.lastName}, {s.firstName}
+              </span>
+              <span className="status-pill text-[10px]">{s.status}</span>
+            </div>
+            <p className="text-xs font-mono text-ink/50 mt-1">{s.admissionNumber}</p>
+            <p className="text-xs text-ink/60 mt-0.5">
+              {s.arm ? `${s.arm.schoolClass.name} ${s.arm.name}` : "Unassigned"}
+            </p>
+          </Link>
+        ))}
+        {students.length === 0 && (
+          <p className="text-center text-ink/50 py-8 text-sm">No students in this list.</p>
+        )}
+      </div>
+
+      <div className="hidden md:block ledger-block !p-0 overflow-x-auto">
         <table className="ledger">
           <thead>
             <tr>
