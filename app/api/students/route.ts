@@ -14,6 +14,7 @@ const CreateStudentSchema = z.object({
   address: z.string().optional(),
   previousSchool: z.string().optional(),
   medicalNotes: z.string().optional(),
+  guardianPhone: z.string().optional(),
   armId: z.string().optional(),
 });
 
@@ -88,6 +89,7 @@ export async function POST(req: Request) {
       address: data.address,
       previousSchool: data.previousSchool,
       medicalNotes: data.medicalNotes,
+      guardianPhone: data.guardianPhone,
       armId: data.armId || undefined,
     },
   });
