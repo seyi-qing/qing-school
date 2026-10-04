@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { notFound } from "next/navigation";
 import { PrintButton } from "./PrintButton";
+import { SCHOOL } from "@/lib/school-config";
 
 export default async function ReportCardPage({ params }: { params: { id: string } }) {
   await requireSession();
@@ -22,23 +23,36 @@ export default async function ReportCardPage({ params }: { params: { id: string 
 
   return (
     <div className="max-w-3xl mx-auto p-10 font-sans text-ink">
-      <div className="no-print mb-6 text-right"><PrintButton /></div>
+      <div className="no-print mb-6 text-right">
+        <PrintButton />
+      </div>
 
       <div className="border-2 border-navy p-8">
         <div className="flex items-center justify-between border-b-2 border-navy pb-4 mb-4">
-          <div className="w-14 h-14 border-2 border-gold flex items-center justify-center font-serif text-gold text-xl">FS</div>
+          <div className="w-14 h-14 border-2 border-gold flex items-center justify-center font-serif text-gold text-sm">
+            {SCHOOL.shortName}
+          </div>
           <div className="text-center">
-            <h1 className="font-serif text-2xl">Force Schools</h1>
-            <p className="text-xs text-ink/60">Termly Report Card</p>
+            <h1 className="font-serif text-2xl">{SCHOOL.name}</h1>
+            <p className="text-xs text-ink/60">Termly Report Card · {SCHOOL.motto}</p>
           </div>
           <div className="w-14" />
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-sm mb-6">
-          <p><strong>Name:</strong> {student.lastName}, {student.firstName} {student.otherNames ?? ""}</p>
-          <p><strong>Admission No.:</strong> {student.admissionNumber}</p>
-          <p><strong>Class:</strong> {student.arm ? `${student.arm.schoolClass.name} ${student.arm.name}` : "-"}</p>
-          <p><strong>Days Present:</strong> {presentDays}</p>
+          <p>
+            <strong>Name:</strong> {student.lastName}, {student.firstName} {student.otherNames ?? ""}
+          </p>
+          <p>
+            <strong>Admission No.:</strong> {student.admissionNumber}
+          </p>
+          <p>
+            <strong>Class:</strong>{" "}
+            {student.arm ? `${student.arm.schoolClass.name} ${student.arm.name}` : "-"}
+          </p>
+          <p>
+            <strong>Days Present:</strong> {presentDays}
+          </p>
         </div>
 
         <table className="w-full text-sm border-collapse mb-6">
@@ -68,7 +82,9 @@ export default async function ReportCardPage({ params }: { params: { id: string 
           </tbody>
         </table>
 
-        <p className="text-sm"><strong>Average:</strong> {average}</p>
+        <p className="text-sm">
+          <strong>Average:</strong> {average}
+        </p>
         <div className="mt-8 grid grid-cols-2 gap-8 text-sm">
           <div className="border-t border-ink pt-2">Class Teacher's Signature</div>
           <div className="border-t border-ink pt-2">Principal's Signature</div>
