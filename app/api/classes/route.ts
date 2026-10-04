@@ -4,12 +4,16 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 
 const CreateClassSchema = z.object({ name: z.string().min(1), order: z.coerce.number().default(0) });
 const CreateArmSchema = z.object({ schoolClassId: z.string(), name: z.string().min(1) });
 
 export async function GET() {
+  const session = await getSession();
+  const schoolId = session ? await resolveSchoolId(session) : null;
   const classes = await prisma.schoolClass.findMany({
+    where: schoolWhere(schoolId),
     include: { arms: { include: { students: { select: { id: true } } } } },
     orderBy: { order: "asc" },
   });
@@ -34,7 +38,10 @@ export async function POST(req: Request) {
 
   const parsed = CreateClassSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid class data." }, { status: 400 });
-  const schoolClass = await prisma.schoolClass.create({ data: parsed.data });
+  const schoolId = await resolveSchoolId(session);
+  const schoolClass = await prisma.schoolClass.create({
+    data: { ...parsed.data, schoolId: schoolId ?? undefined },
+  });
   await logAudit({ userId: session.userId, action: "CREATE_CLASS", entity: "SchoolClass", entityId: schoolClass.id });
   return NextResponse.json({ schoolClass }, { status: 201 });
 }

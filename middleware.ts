@@ -45,11 +45,22 @@ async function getRoleFromCookie(req: NextRequest): Promise<string | null> {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Subdomain tenant hint: demo.example.com → slug "demo"
+  const host = req.headers.get("host") || "";
+  const hostNoPort = host.split(":")[0];
+  const hostParts = hostNoPort.split(".");
+  let schoolSlug: string | null = null;
+  if (hostParts.length >= 3 && !["www", "app", "api"].includes(hostParts[0])) {
+    schoolSlug = hostParts[0];
+  }
+
   if (
     PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     pathname.startsWith("/_next")
   ) {
-    return NextResponse.next();
+    const res = NextResponse.next();
+    if (schoolSlug) res.headers.set("x-school-slug", schoolSlug);
+    return res;
   }
 
   const role = await getRoleFromCookie(req);
@@ -68,7 +79,9 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  const res = NextResponse.next();
+  if (schoolSlug) res.headers.set("x-school-slug", schoolSlug);
+  return res;
 }
 
 export const config = {
