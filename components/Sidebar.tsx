@@ -34,6 +34,8 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/cms", label: "Website CMS", roles: ["ADMIN", "IT", "SECRETARY"] },
   { href: "/reports", label: "Reports", roles: ["ADMIN", "IT", "PRINCIPAL", "ACCOUNTANT", "SECRETARY"] },
   { href: "/settings/report-template", label: "Report designer", roles: ["ADMIN", "IT", "PRINCIPAL"] },
+  { href: "/settings/security", label: "Security", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "TEACHER", "ACCOUNTANT"] },
+  { href: "/settings/ops", label: "Ops / SMS / Backup", roles: ["ADMIN", "IT"] },
   { href: "/settings", label: "Admin Settings", roles: ["ADMIN", "IT"] },
   { href: "/settings/go-live", label: "Go-live checklist", roles: ["ADMIN", "IT"] },
 ];
