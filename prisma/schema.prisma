@@ -1,4 +1,4 @@
-// FORCE SCHOOLS ERP - DATABASE SCHEMA
+// KMS School ERP — multi-tenant school management
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,6 +9,7 @@ datasource db {
 }
 
 enum Role {
+  PLATFORM_ADMIN
   ADMIN
   IT
   SECRETARY
@@ -19,12 +20,47 @@ enum Role {
   PARENT
 }
 
+model School {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  name            String
+  shortName       String
+  motto           String?
+  tagline         String?
+  logoUrl         String?
+  primaryColor    String   @default("#1a3a6e")
+  accentColor     String   @default("#c9a227")
+  phone           String?
+  phoneAlt        String?
+  email           String?
+  address         String?
+  location        String?
+  plan            String   @default("STARTER")
+  isActive        Boolean  @default(true)
+  isDemo          Boolean  @default(false)
+  maxStudents     Int      @default(500)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  users           User[]
+  students        Student[]
+  staff           Staff[]
+  classes         SchoolClass[]
+  notices         Notice[]
+  cmsPages        CmsPage[]
+  academicYears   Session[]
+  auditLogs       AuditLog[]
+
+  @@index([isActive])
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
   role         Role
   isActive     Boolean  @default(true)
+  schoolId     String?
+  school       School?  @relation(fields: [schoolId], references: [id])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   staff        Staff?
@@ -32,6 +68,7 @@ model User {
   parentLinks  ParentLink[]
   auditLogs    AuditLog[]
   @@index([role])
+  @@index([schoolId])
 }
 
 model ParentLink {
@@ -39,7 +76,7 @@ model ParentLink {
   parent    User     @relation(fields: [parentId], references: [id], onDelete: Cascade)
   parentId  String
   student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  studentId String
+  studentId  String
   relation  String
   createdAt DateTime @default(now())
   @@unique([parentId, studentId])
@@ -47,10 +84,14 @@ model ParentLink {
 
 model Session {
   id        String   @id @default(cuid())
-  name      String   @unique
+  schoolId  String?
+  school    School?  @relation(fields: [schoolId], references: [id])
+  name      String
   isCurrent Boolean  @default(false)
   terms     Term[]
   createdAt DateTime @default(now())
+  @@unique([schoolId, name])
+  @@index([schoolId])
 }
 
 model Term {
@@ -69,10 +110,13 @@ model Term {
 }
 
 model SchoolClass {
-  id    String @id @default(cuid())
-  name  String
-  order Int    @default(0)
-  arms  Arm[]
+  id       String  @id @default(cuid())
+  name     String
+  order    Int     @default(0)
+  schoolId String?
+  school   School? @relation(fields: [schoolId], references: [id])
+  arms     Arm[]
+  @@index([schoolId])
 }
 
 model Arm {
@@ -122,6 +166,8 @@ model TimetableSlot {
 
 model Staff {
   id             String         @id @default(cuid())
+  schoolId       String?
+  school         School?        @relation(fields: [schoolId], references: [id])
   staffId        String         @unique
   user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId         String         @unique
@@ -138,10 +184,13 @@ model Staff {
   payslips       Payslip[]
   leaveRequests  LeaveRequest[]
   createdAt      DateTime       @default(now())
+  @@index([schoolId])
 }
 
 model Student {
   id               String                @id @default(cuid())
+  schoolId         String?
+  school           School?               @relation(fields: [schoolId], references: [id])
   admissionNumber  String                @unique
   user             User?                 @relation(fields: [userId], references: [id])
   userId           String?               @unique
@@ -169,6 +218,7 @@ model Student {
   cbtAttempts      CbtAttempt[]
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
+  @@index([schoolId])
 }
 
 model Document {
@@ -259,7 +309,9 @@ model TransportEnrollment {
 
 model CmsPage {
   id              String           @id @default(cuid())
-  slug            String           @unique
+  schoolId        String?
+  school          School?          @relation(fields: [schoolId], references: [id])
+  slug            String
   title           String
   body            String
   published       Boolean          @default(false)
@@ -269,6 +321,8 @@ model CmsPage {
   versions        CmsPageVersion[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  @@unique([schoolId, slug])
+  @@index([schoolId])
 }
 
 model CmsPageVersion {
@@ -473,12 +527,15 @@ model Payslip {
 
 model Notice {
   id           String   @id @default(cuid())
+  schoolId     String?
+  school       School?  @relation(fields: [schoolId], references: [id])
   title        String
   body         String
   audience     String   @default("ALL")
   publishToWeb Boolean  @default(false)
   createdBy    String?
   createdAt    DateTime @default(now())
+  @@index([schoolId])
 }
 
 model MessageLog {
@@ -492,6 +549,8 @@ model MessageLog {
 
 model AuditLog {
   id        String   @id @default(cuid())
+  schoolId  String?
+  school    School?  @relation(fields: [schoolId], references: [id])
   user      User?    @relation(fields: [userId], references: [id])
   userId    String?
   action    String
@@ -500,4 +559,6 @@ model AuditLog {
   details   String?
   createdAt DateTime @default(now())
   @@index([entity, entityId])
+  @@index([schoolId])
+  @@index([createdAt])
 }
