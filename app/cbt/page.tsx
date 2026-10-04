@@ -77,8 +77,19 @@ export default async function CbtPage() {
     orderBy: { createdAt: "desc" },
   });
 
+  const pendingGrading = await prisma.cbtAttempt.count({ where: { needsGrading: true } });
+
   return (
     <PortalShell role={session.role} title="CBT" subtitle="Create MCQ tests for students">
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Link
+          href="/cbt/results"
+          className="text-sm border border-navy text-navy px-3 py-1.5 hover:bg-navy hover:text-paper"
+        >
+          Results & essay grading
+          {pendingGrading > 0 ? ` (${pendingGrading} pending)` : ""}
+        </Link>
+      </div>
       <CbtStaffPanel
         exams={exams.map((e) => ({
           id: e.id,
