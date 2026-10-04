@@ -9,6 +9,7 @@ type Route = {
   vehicle: string | null;
   driverName: string | null;
   driverPhone: string | null;
+  feeAmount: number;
   feeLabel: string;
   riders: { id: string; studentName: string; admissionNumber: string }[];
 };
@@ -23,6 +24,7 @@ export function TransportClient({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   async function addRoute(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -43,10 +45,58 @@ export function TransportClient({
     const data = await res.json();
     setBusy(false);
     if (!res.ok) {
-      setMsg(data.error || "Failed");
+      setMsg(data.error || "Failed to create route");
       return;
     }
     (e.target as HTMLFormElement).reset();
+    router.refresh();
+  }
+
+  async function saveRoute(e: FormEvent<HTMLFormElement>, id: string) {
+    e.preventDefault();
+    setBusy(true);
+    setMsg("");
+    const fd = new FormData(e.currentTarget);
+    const res = await fetch("/api/transport", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id,
+        name: fd.get("name"),
+        vehicle: fd.get("vehicle") || null,
+        driverName: fd.get("driverName") || null,
+        driverPhone: fd.get("driverPhone") || null,
+        feeAmount: fd.get("feeAmount") || 0,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      setMsg(data.error || "Failed to update route");
+      return;
+    }
+    setMsg("Route updated.");
+    setEditingId(null);
+    router.refresh();
+  }
+
+  async function deleteRoute(id: string, name: string) {
+    if (!confirm(`Delete route “${name}”? Only allowed if there are no active riders.`)) return;
+    setBusy(true);
+    setMsg("");
+    const res = await fetch("/api/transport", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      setMsg(data.error || "Could not delete route");
+      return;
+    }
+    setMsg("Route deleted.");
+    setEditingId(null);
     router.refresh();
   }
 
@@ -66,7 +116,7 @@ export function TransportClient({
     const data = await res.json();
     setBusy(false);
     if (!res.ok) {
-      setMsg(data.error || "Failed");
+      setMsg(data.error || "Failed to enroll");
       return;
     }
     (e.target as HTMLFormElement).reset();
@@ -105,13 +155,23 @@ export function TransportClient({
 
   return (
     <div className="space-y-6">
-      {msg && <p className="text-sm text-brick">{msg}</p>}
+      {msg && (
+        <p
+          className={`text-sm px-3 py-2 border ${
+            msg.includes("updated") || msg.includes("created") || msg.includes("deleted")
+              ? "text-sage border-sage/30 bg-sage/5"
+              : "text-brick border-brick/30 bg-brick/5"
+          }`}
+        >
+          {msg}
+        </p>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <section className="ledger-block">
           <h2 className="font-serif text-lg mb-3">Add route</h2>
           <form onSubmit={addRoute} className="space-y-2 text-sm">
-            <input name="name" required placeholder="Route name (e.g. Ikeja – School)" className="w-full border border-line px-3 py-2" />
+            <input name="name" required placeholder="Route name (e.g. Sango – Ifo)" className="w-full border border-line px-3 py-2" />
             <input name="vehicle" placeholder="Vehicle plate / bus no." className="w-full border border-line px-3 py-2" />
             <input name="driverName" placeholder="Driver name" className="w-full border border-line px-3 py-2" />
             <input name="driverPhone" placeholder="Driver phone" className="w-full border border-line px-3 py-2" />
@@ -150,14 +210,96 @@ export function TransportClient({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {routes.map((r) => (
-          <section key={r.id} className="ledger-block">
-            <h3 className="font-serif text-base mb-1">{r.name}</h3>
-            <p className="text-xs text-ink/50 mb-3">
-              {r.vehicle ?? "No vehicle"}
-              {r.driverName ? ` · ${r.driverName}` : ""}
-              {r.driverPhone ? ` · ${r.driverPhone}` : ""}
-              {` · Fee ${r.feeLabel}`}
-            </p>
+          <section key={r.id} className="ledger-block space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h3 className="font-serif text-base">{r.name}</h3>
+                <p className="text-xs text-ink/50 mt-0.5">
+                  {r.vehicle ?? "No vehicle"}
+                  {r.driverName ? ` · ${r.driverName}` : ""}
+                  {r.driverPhone ? ` · ${r.driverPhone}` : ""}
+                  {` · Fee ${r.feeLabel}`}
+                </p>
+              </div>
+              <div className="flex gap-2 text-xs">
+                <button
+                  type="button"
+                  className="underline text-navy"
+                  onClick={() => setEditingId(editingId === r.id ? null : r.id)}
+                >
+                  {editingId === r.id ? "Cancel" : "Edit route"}
+                </button>
+                <button
+                  type="button"
+                  className="underline text-brick"
+                  disabled={busy}
+                  onClick={() => deleteRoute(r.id, r.name)}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+
+            {editingId === r.id && (
+              <form
+                onSubmit={(e) => saveRoute(e, r.id)}
+                className="space-y-2 text-sm border border-navy/20 bg-navy/5 p-3"
+              >
+                <p className="text-xs font-medium text-navy uppercase tracking-wide">Edit route / driver</p>
+                <label className="block text-xs text-ink/60">
+                  Route name
+                  <input
+                    name="name"
+                    required
+                    defaultValue={r.name}
+                    className="mt-0.5 w-full border border-line px-3 py-2 bg-white"
+                  />
+                </label>
+                <label className="block text-xs text-ink/60">
+                  Vehicle plate / bus no.
+                  <input
+                    name="vehicle"
+                    defaultValue={r.vehicle ?? ""}
+                    className="mt-0.5 w-full border border-line px-3 py-2 bg-white"
+                  />
+                </label>
+                <label className="block text-xs text-ink/60">
+                  Driver name
+                  <input
+                    name="driverName"
+                    defaultValue={r.driverName ?? ""}
+                    className="mt-0.5 w-full border border-line px-3 py-2 bg-white"
+                  />
+                </label>
+                <label className="block text-xs text-ink/60">
+                  Driver phone
+                  <input
+                    name="driverPhone"
+                    defaultValue={r.driverPhone ?? ""}
+                    className="mt-0.5 w-full border border-line px-3 py-2 bg-white"
+                  />
+                </label>
+                <label className="block text-xs text-ink/60">
+                  Termly fee (NGN)
+                  <input
+                    name="feeAmount"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    defaultValue={r.feeAmount}
+                    className="mt-0.5 w-full border border-line px-3 py-2 bg-white"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="w-full bg-navy text-paper py-2 disabled:opacity-60"
+                >
+                  {busy ? "Saving…" : "Save changes"}
+                </button>
+              </form>
+            )}
+
             <ul className="text-sm space-y-2">
               {r.riders.map((x) => (
                 <li key={x.id} className="flex justify-between gap-2 border-b border-line pb-2">
