@@ -3,24 +3,38 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+type Dup = {
+  id: string;
+  admissionNumber: string;
+  name: string;
+  status: string;
+  class: string;
+};
+
 export function AdmissionForm({ arms }: { arms: { id: string; label: string }[] }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [duplicates, setDuplicates] = useState<Dup[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState<Record<string, unknown> | null>(null);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function submit(payload: Record<string, unknown>, forceAdmit = false) {
     setSubmitting(true);
     setError(null);
-    const form = new FormData(e.currentTarget);
-    const payload = Object.fromEntries(form.entries());
     const res = await fetch("/api/students", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, forceAdmit }),
     });
     const data = await res.json();
     setSubmitting(false);
+
+    if (res.status === 409 && data.code === "DUPLICATE_NAME") {
+      setDuplicates(data.duplicates || []);
+      setPendingPayload(payload);
+      setError(data.error);
+      return;
+    }
     if (!res.ok) {
       setError(data.error ?? "Could not admit student.");
       return;
@@ -28,13 +42,22 @@ export function AdmissionForm({ arms }: { arms: { id: string; label: string }[] 
     router.push(`/students/${data.student.id}`);
   }
 
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setDuplicates([]);
+    setPendingPayload(null);
+    const form = new FormData(e.currentTarget);
+    const payload = Object.fromEntries(form.entries());
+    await submit(payload, false);
+  }
+
   return (
     <form onSubmit={handleSubmit} className="ledger-block space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="First name" name="firstName" required />
         <Field label="Last name" name="lastName" required />
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="Other names" name="otherNames" />
         <div>
           <label className="block text-xs font-medium text-ink/70 mb-1">Gender</label>
@@ -45,7 +68,7 @@ export function AdmissionForm({ arms }: { arms: { id: string; label: string }[] 
           </select>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="Date of birth" name="dateOfBirth" type="date" />
         <div>
           <label className="block text-xs font-medium text-ink/70 mb-1">Class / Arm</label>
@@ -64,13 +87,35 @@ export function AdmissionForm({ arms }: { arms: { id: string; label: string }[] 
       <Field label="Previous school" name="previousSchool" />
       <div>
         <label className="block text-xs font-medium text-ink/70 mb-1">Medical notes</label>
-        <textarea
-          name="medicalNotes"
-          rows={2}
-          className="w-full border border-line px-3 py-2 text-sm bg-white"
-        />
+        <textarea name="medicalNotes" rows={2} className="w-full border border-line px-3 py-2 text-sm bg-white" />
       </div>
+
       {error && <p className="text-sm text-brick">{error}</p>}
+
+      {duplicates.length > 0 && (
+        <div className="border border-brick/40 bg-brick/5 p-3 text-sm space-y-2">
+          <p className="font-medium">Existing records with the same name:</p>
+          <ul className="space-y-1">
+            {duplicates.map((d) => (
+              <li key={d.id}>
+                <a href={`/students/${d.id}`} className="underline text-navy">
+                  {d.admissionNumber}
+                </a>{" "}
+                — {d.name} · {d.status} · {d.class}
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            disabled={submitting || !pendingPayload}
+            onClick={() => pendingPayload && submit(pendingPayload, true)}
+            className="border border-brick text-brick text-xs px-3 py-1.5"
+          >
+            Admit anyway (create another record)
+          </button>
+        </div>
+      )}
+
       <button
         type="submit"
         disabled={submitting}
