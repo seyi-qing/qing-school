@@ -52,32 +52,61 @@ export function AdmissionForm({ arms }: { arms: { id: string; label: string }[] 
           <select name="armId" className="w-full border border-line px-3 py-2 text-sm bg-white">
             <option value="">Unassigned for now</option>
             {arms.map((a) => (
-              <option key={a.id} value={a.id}>{a.label}</option>
+              <option key={a.id} value={a.id}>
+                {a.label}
+              </option>
             ))}
           </select>
         </div>
       </div>
+      <Field label="Guardian phone" name="guardianPhone" placeholder="0803..." />
       <Field label="Home address" name="address" />
       <Field label="Previous school" name="previousSchool" />
       <div>
         <label className="block text-xs font-medium text-ink/70 mb-1">Medical notes</label>
-        <textarea name="medicalNotes" rows={2} className="w-full border border-line px-3 py-2 text-sm bg-white" />
+        <textarea
+          name="medicalNotes"
+          rows={2}
+          className="w-full border border-line px-3 py-2 text-sm bg-white"
+        />
       </div>
       {error && <p className="text-sm text-brick">{error}</p>}
-      <button type="submit" disabled={submitting} className="bg-navy text-paper text-sm px-5 py-2.5 hover:bg-navy-light disabled:opacity-60">
+      <button
+        type="submit"
+        disabled={submitting}
+        className="bg-navy text-paper text-sm px-5 py-2.5 hover:bg-navy-light disabled:opacity-60"
+      >
         {submitting ? "Admitting..." : "Admit Student"}
       </button>
     </form>
   );
 }
 
-function Field({ label, name, required, type = "text" }: { label: string; name: string; required?: boolean; type?: string }) {
+function Field({
+  label,
+  name,
+  required,
+  type = "text",
+  placeholder,
+}: {
+  label: string;
+  name: string;
+  required?: boolean;
+  type?: string;
+  placeholder?: string;
+}) {
   return (
     <div>
       <label className="block text-xs font-medium text-ink/70 mb-1">
         {label} {required && <span className="text-brick">*</span>}
       </label>
-      <input name={name} type={type} required={required} className="w-full border border-line px-3 py-2 text-sm bg-white" />
+      <input
+        name={name}
+        type={type}
+        required={required}
+        placeholder={placeholder}
+        className="w-full border border-line px-3 py-2 text-sm bg-white"
+      />
     </div>
   );
 }
