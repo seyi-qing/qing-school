@@ -6,9 +6,17 @@ import { logAudit } from "@/lib/audit";
 
 const BookSchema = z.object({
   title: z.string().min(1).max(200),
-  author: z.string().max(120).optional(),
-  isbn: z.string().max(40).optional(),
+  author: z.string().max(120).optional().nullable(),
+  isbn: z.string().max(40).optional().nullable(),
   copies: z.coerce.number().int().min(1).default(1),
+});
+
+const UpdateBookSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1).max(200),
+  author: z.string().max(120).optional().nullable(),
+  isbn: z.string().max(40).optional().nullable(),
+  copies: z.coerce.number().int().min(1),
 });
 
 const LoanSchema = z.object({
@@ -45,6 +53,79 @@ export async function GET() {
   return NextResponse.json({ books, openLoans });
 }
 
+export async function PATCH(req: Request) {
+  const session = await getSession();
+  if (!session || !canManage(session.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const body = await req.json().catch(() => null);
+  const parsed = UpdateBookSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid book data" }, { status: 400 });
+  }
+
+  const book = await prisma.libraryBook.findUnique({ where: { id: parsed.data.id } });
+  if (!book) return NextResponse.json({ error: "Book not found" }, { status: 404 });
+
+  const onLoan = book.copies - book.available;
+  if (parsed.data.copies < onLoan) {
+    return NextResponse.json(
+      { error: `Cannot set copies below books currently on loan (${onLoan}).` },
+      { status: 400 }
+    );
+  }
+
+  const available = parsed.data.copies - onLoan;
+  const updated = await prisma.libraryBook.update({
+    where: { id: book.id },
+    data: {
+      title: parsed.data.title.trim(),
+      author: parsed.data.author?.trim() || null,
+      isbn: parsed.data.isbn?.trim() || null,
+      copies: parsed.data.copies,
+      available,
+    },
+  });
+
+  await logAudit({
+    userId: session.userId,
+    action: "UPDATE_LIBRARY_BOOK",
+    entity: "LibraryBook",
+    entityId: updated.id,
+  });
+
+  return NextResponse.json({ book: updated });
+}
+
+export async function DELETE(req: Request) {
+  const session = await getSession();
+  if (!session || !canManage(session.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const body = await req.json().catch(() => null);
+  const id = typeof body?.id === "string" ? body.id : null;
+  if (!id) return NextResponse.json({ error: "Book id required" }, { status: 400 });
+
+  const open = await prisma.bookLoan.count({ where: { bookId: id, returnedAt: null } });
+  if (open > 0) {
+    return NextResponse.json(
+      { error: `Cannot delete: ${open} open loan(s). Return books first.` },
+      { status: 409 }
+    );
+  }
+
+  await prisma.libraryBook.delete({ where: { id } });
+  await logAudit({
+    userId: session.userId,
+    action: "DELETE_LIBRARY_BOOK",
+    entity: "LibraryBook",
+    entityId: id,
+  });
+  return NextResponse.json({ ok: true });
+}
+
 export async function POST(req: Request) {
   const session = await getSession();
   if (!session || !canManage(session.role)) {
@@ -53,7 +134,6 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => null);
 
-  // Return a loan
   if (body?.loanId && body?.action === "return") {
     const parsed = ReturnSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: "Invalid" }, { status: 400 });
@@ -83,7 +163,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  // Issue a loan
   if (body?.bookId && body?.studentId) {
     const parsed = LoanSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: "Invalid loan data" }, { status: 400 });
@@ -120,7 +199,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ loan }, { status: 201 });
   }
 
-  // Add book
   const parsed = BookSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid book data" }, { status: 400 });
@@ -128,9 +206,9 @@ export async function POST(req: Request) {
 
   const book = await prisma.libraryBook.create({
     data: {
-      title: parsed.data.title,
-      author: parsed.data.author || null,
-      isbn: parsed.data.isbn || null,
+      title: parsed.data.title.trim(),
+      author: parsed.data.author?.trim() || null,
+      isbn: parsed.data.isbn?.trim() || null,
       copies: parsed.data.copies,
       available: parsed.data.copies,
     },
