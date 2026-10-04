@@ -32,7 +32,7 @@ export default async function CbtResultsPage() {
       subtitle={`${pending.length} need essay grading · ${attempts.length} recent attempts`}
       actions={
         <Link href="/cbt" className="text-sm border border-navy text-navy px-3 py-1.5">
-          ← CBT exams
+          Back to CBT
         </Link>
       }
     >
