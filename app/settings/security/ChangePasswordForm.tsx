@@ -38,16 +38,32 @@ export function ChangePasswordForm() {
       <p className="text-xs text-ink/60">{passwordPolicyHint()}</p>
       <label className="block">
         Current password
-        <input name="currentPassword" type="password" required autoComplete="current-password" className="mt-1 w-full border border-line px-3 py-2" />
+        <input
+          name="currentPassword"
+          type="password"
+          required
+          autoComplete="current-password"
+          className="mt-1 w-full border border-line px-3 py-2"
+        />
       </label>
       <label className="block">
         New password
-        <input name="newPassword" type="password" required autoComplete="new-password" className="mt-1 w-full border border-line px-3 py-2" />
+        <input
+          name="newPassword"
+          type="password"
+          required
+          autoComplete="new-password"
+          className="mt-1 w-full border border-line px-3 py-2"
+        />
       </label>
-      <button type="submit" disabled={busy} className="bg-navy text-paper px-4 py-2 disabled:opacity-50">
-        {busy ? "Saving…" : "Change password"}
+      <button
+        type="submit"
+        disabled={busy}
+        className="bg-navy text-paper px-4 py-2 disabled:opacity-50"
+      >
+        {busy ? "Saving..." : "Change password"}
       </button>
-      {msg && <p className={ok ? "text-sage" : "text-brick">{msg}</p>}
+      {msg && <p className={ok ? "text-sage" : "text-brick"}>{msg}</p>}
     </form>
   );
 }
