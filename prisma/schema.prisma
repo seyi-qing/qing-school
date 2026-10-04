@@ -153,6 +153,7 @@ model Student {
   address          String?
   previousSchool   String?
   medicalNotes     String?
+  guardianPhone    String?
   status           String                @default("ACTIVE")
   arm              Arm?                  @relation(fields: [armId], references: [id])
   armId            String?
