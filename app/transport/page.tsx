@@ -37,7 +37,7 @@ export default async function TransportPage() {
   ]);
 
   return (
-    <PortalShell role={session.role} title="Transport" subtitle="Bus routes and riders">
+    <PortalShell role={session.role} title="Transport" subtitle="Bus routes, drivers, and riders">
       <TransportClient
         routes={routes.map((r) => ({
           id: r.id,
@@ -45,6 +45,7 @@ export default async function TransportPage() {
           vehicle: r.vehicle,
           driverName: r.driverName,
           driverPhone: r.driverPhone,
+          feeAmount: r.feeAmount,
           feeLabel: formatNaira(r.feeAmount),
           riders: r.enrollments.map((e) => ({
             id: e.id,
