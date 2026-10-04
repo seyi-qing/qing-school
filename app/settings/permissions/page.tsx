@@ -21,10 +21,10 @@ export default async function PermissionsPage() {
     <PortalShell
       role={session.role}
       title="Staff permissions audit"
-      subtitle="What each role can do — source of truth is lib/permissions.ts"
+      subtitle="What each role can do - source of truth is lib/permissions.ts"
       actions={
         <Link href="/settings" className="text-sm border border-navy text-navy px-3 py-1.5">
-          ← Settings
+          Back to Settings
         </Link>
       }
     >
@@ -48,7 +48,7 @@ export default async function PermissionsPage() {
                   const allowed = (PERMISSIONS[perm] as readonly string[]).includes(r);
                   return (
                     <td key={r} className={`text-center ${allowed ? "text-sage font-medium" : "text-ink/25"}`}>
-                      {allowed ? "✓" : "·"}
+                      {allowed ? "Y" : "."}
                     </td>
                   );
                 })}
@@ -58,8 +58,11 @@ export default async function PermissionsPage() {
         </table>
       </div>
       <p className="text-xs text-ink/50 mt-3">
-        Changing roles for a staff member is done under <Link href="/staff" className="underline">Staff → Edit</Link>.
-        Code changes to this matrix require a developer deploy.
+        Changing roles for a staff member is done under{" "}
+        <Link href="/staff" className="underline">
+          Staff Edit
+        </Link>
+        . Code changes to this matrix require a developer deploy.
       </p>
     </PortalShell>
   );
