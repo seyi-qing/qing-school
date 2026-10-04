@@ -12,14 +12,14 @@ const ACCOUNTS: Array<{
   legacyEmail: string;
   role: "ADMIN" | "IT" | "SECRETARY" | "PRINCIPAL" | "ACCOUNTANT" | "TEACHER" | "STUDENT" | "PARENT";
 }> = [
-  { email: "admin@kms.sch.ng", legacyEmail: "admin@forceschools.test", role: "ADMIN" },
-  { email: "it@kms.sch.ng", legacyEmail: "it@forceschools.test", role: "IT" },
-  { email: "secretary@kms.sch.ng", legacyEmail: "secretary@forceschools.test", role: "SECRETARY" },
-  { email: "principal@kms.sch.ng", legacyEmail: "principal@forceschools.test", role: "PRINCIPAL" },
-  { email: "accountant@kms.sch.ng", legacyEmail: "accountant@forceschools.test", role: "ACCOUNTANT" },
-  { email: "teacher@kms.sch.ng", legacyEmail: "teacher@forceschools.test", role: "TEACHER" },
-  { email: "student@kms.sch.ng", legacyEmail: "student@forceschools.test", role: "STUDENT" },
-  { email: "parent@kms.sch.ng", legacyEmail: "parent@forceschools.test", role: "PARENT" },
+  { email: "admin@kms.sch.ng", legacyEmail: "admin@kms.legacy.test", role: "ADMIN" },
+  { email: "it@kms.sch.ng", legacyEmail: "it@kms.legacy.test", role: "IT" },
+  { email: "secretary@kms.sch.ng", legacyEmail: "secretary@kms.legacy.test", role: "SECRETARY" },
+  { email: "principal@kms.sch.ng", legacyEmail: "principal@kms.legacy.test", role: "PRINCIPAL" },
+  { email: "accountant@kms.sch.ng", legacyEmail: "accountant@kms.legacy.test", role: "ACCOUNTANT" },
+  { email: "teacher@kms.sch.ng", legacyEmail: "teacher@kms.legacy.test", role: "TEACHER" },
+  { email: "student@kms.sch.ng", legacyEmail: "student@kms.legacy.test", role: "STUDENT" },
+  { email: "parent@kms.sch.ng", legacyEmail: "parent@kms.legacy.test", role: "PARENT" },
 ];
 
 async function upsertKmsUser(
@@ -59,7 +59,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Invalid secret" }, { status: 401 });
   }
 
-  // Production lock: set ALLOW_SETUP_SEED=false after first migration
   const allow = process.env.ALLOW_SETUP_SEED;
   if (allow === "false" || allow === "0") {
     return NextResponse.json(
@@ -93,11 +92,18 @@ export async function GET(req: NextRequest) {
       users[acc.role] = u;
     }
 
-    const session = await prisma.session.upsert({
-      where: { name: "2025/2026" },
-      update: { isCurrent: true },
-      create: { name: "2025/2026", isCurrent: true },
-    });
+    // Session unique is (schoolId, name) — cannot upsert by name alone
+    let session = await prisma.session.findFirst({ where: { name: "2025/2026" } });
+    if (!session) {
+      session = await prisma.session.create({
+        data: { name: "2025/2026", isCurrent: true },
+      });
+    } else {
+      session = await prisma.session.update({
+        where: { id: session.id },
+        data: { isCurrent: true },
+      });
+    }
 
     let term = await prisma.term.findFirst({
       where: { sessionId: session.id, name: "First Term" },
