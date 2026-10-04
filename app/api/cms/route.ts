@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 
 const Schema = z.object({
   slug: z
@@ -32,7 +33,11 @@ export async function GET(req: Request) {
     });
     return NextResponse.json({ versions });
   }
-  const pages = await prisma.cmsPage.findMany({ orderBy: { updatedAt: "desc" } });
+  const schoolId = await resolveSchoolId(session);
+  const pages = await prisma.cmsPage.findMany({
+    where: schoolWhere(schoolId),
+    orderBy: { updatedAt: "desc" },
+  });
   return NextResponse.json({ pages });
 }
 
@@ -44,7 +49,6 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => null);
 
-  // Restore version
   if (body?.action === "restore" && body?.versionId) {
     const ver = await prisma.cmsPageVersion.findUnique({ where: { id: body.versionId } });
     if (!ver) return NextResponse.json({ error: "Version not found" }, { status: 404 });
@@ -74,13 +78,14 @@ export async function POST(req: Request) {
     publishAt: parsed.data.publishAt ? new Date(parsed.data.publishAt) : null,
   };
 
-  const page = await prisma.cmsPage.upsert({
-    where: { slug: parsed.data.slug },
-    update: data,
-    create: { slug: parsed.data.slug, ...data },
+  const schoolId = await resolveSchoolId(session);
+  const existing = await prisma.cmsPage.findFirst({
+    where: { slug: parsed.data.slug, schoolId: schoolId ?? undefined },
   });
+  const page = existing
+    ? await prisma.cmsPage.update({ where: { id: existing.id }, data: { ...data, schoolId: schoolId ?? existing.schoolId } })
+    : await prisma.cmsPage.create({ data: { slug: parsed.data.slug, schoolId, ...data } });
 
-  // History snapshot (keep last ~20 via prune)
   await prisma.cmsPageVersion.create({
     data: {
       pageId: page.id,

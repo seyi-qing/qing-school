@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
+import { resolveSchoolId, schoolWhere, assertUnderStudentCap } from "@/lib/tenant-scope";
 
 const CreateStudentSchema = z.object({
   firstName: z.string().min(1),
@@ -36,8 +37,10 @@ export async function GET(req: Request) {
   const q = searchParams.get("q")?.trim();
   const armId = searchParams.get("armId") ?? undefined;
 
+  const schoolId = await resolveSchoolId(session);
   const students = await prisma.student.findMany({
     where: {
+      ...schoolWhere(schoolId),
       status: "ACTIVE",
       armId: armId || undefined,
       ...(q
@@ -77,10 +80,16 @@ export async function POST(req: Request) {
   }
 
   const data = parsed.data;
+  const schoolId = await resolveSchoolId(session);
+  if (schoolId) {
+    const cap = await assertUnderStudentCap(schoolId);
+    if (!cap.ok) return NextResponse.json({ error: cap.error }, { status: 403 });
+  }
 
   if (!data.forceAdmit) {
     const candidates = await prisma.student.findMany({
       where: {
+        ...schoolWhere(schoolId),
         status: { not: "WITHDRAWN" },
         firstName: { equals: data.firstName.trim(), mode: "insensitive" },
         lastName: { equals: data.lastName.trim(), mode: "insensitive" },
@@ -118,6 +127,7 @@ export async function POST(req: Request) {
 
   const student = await prisma.student.create({
     data: {
+      schoolId: schoolId ?? undefined,
       admissionNumber,
       firstName: data.firstName.trim(),
       lastName: data.lastName.trim(),
