@@ -16,7 +16,7 @@ export default async function SecurityPage() {
       subtitle="Password policy and account safety"
       actions={
         <Link href="/settings" className="text-sm border border-navy text-navy px-3 py-1.5">
-          ← Settings
+          Back to Settings
         </Link>
       }
     >
@@ -30,7 +30,7 @@ export default async function SecurityPage() {
           <ul className="list-disc pl-5 space-y-1 text-ink/70">
             <li>Minimum length: {PASSWORD_MIN_LENGTH}</li>
             <li>{passwordPolicyHint()}</li>
-            <li>New staff get a strong random temporary password — reset from Staff after hire.</li>
+            <li>New staff get a strong random temporary password - reset from Staff after hire.</li>
             <li>Admins should change seed/demo passwords immediately after go-live.</li>
             <li>Sessions use httpOnly signed cookies (7-day expiry).</li>
           </ul>
