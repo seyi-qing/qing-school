@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/require-session";
 import { PortalShell } from "@/components/PortalShell";
 import { StudentDocuments } from "@/components/StudentDocuments";
 import { ApproveStudentButton } from "@/components/ApproveStudentButton";
+import { StudentEditForm } from "@/components/StudentEditForm";
 import { can } from "@/lib/permissions";
 import { formatNaira, formatDate } from "@/lib/format";
 import { notFound, redirect } from "next/navigation";
@@ -23,49 +24,82 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
     if (!linked) redirect("/portal/parent");
   }
 
-  const student = await prisma.student.findUnique({
-    where: { id: params.id },
-    include: {
-      arm: { include: { schoolClass: true } },
-      invoices: { orderBy: { createdAt: "desc" } },
-      scores: { include: { armSubject: { include: { subject: true } } } },
-      attendances: { orderBy: { date: "desc" }, take: 10 },
-      parentLinks: { include: { parent: { select: { email: true } } } },
-      documents: { orderBy: { uploadedAt: "desc" } },
-      hostelAllocs: {
-        where: { status: "ACTIVE" },
-        include: { room: true },
-        take: 1,
+  const [student, arms] = await Promise.all([
+    prisma.student.findUnique({
+      where: { id: params.id },
+      include: {
+        arm: { include: { schoolClass: true } },
+        invoices: { orderBy: { createdAt: "desc" } },
+        scores: { include: { armSubject: { include: { subject: true } } } },
+        attendances: { orderBy: { date: "desc" }, take: 10 },
+        parentLinks: { include: { parent: { select: { email: true } } } },
+        documents: { orderBy: { uploadedAt: "desc" } },
+        hostelAllocs: {
+          where: { status: "ACTIVE" },
+          include: { room: true },
+          take: 1,
+        },
+        transportEnrolls: {
+          where: { status: "ACTIVE" },
+          include: { route: true },
+          take: 1,
+        },
       },
-      transportEnrolls: {
-        where: { status: "ACTIVE" },
-        include: { route: true },
-        take: 1,
-      },
-    },
-  });
+    }),
+    prisma.arm.findMany({
+      include: { schoolClass: true },
+      orderBy: [{ schoolClass: { order: "asc" } }, { name: "asc" }],
+    }),
+  ]);
 
   if (!student) notFound();
 
   const canManage = can(session.role, "MANAGE_STUDENTS");
   const hostel = student.hostelAllocs[0];
   const transport = student.transportEnrolls[0];
+  const classLabel = student.arm
+    ? `${student.arm.schoolClass.name} ${student.arm.name}`
+    : "Unassigned";
 
   return (
     <PortalShell
       role={session.role}
       title={`${student.firstName} ${student.lastName}`}
-      subtitle={`${student.admissionNumber} · ${student.arm ? `${student.arm.schoolClass.name} ${student.arm.name}` : "Unassigned"} · ${student.status}`}
+      subtitle={`${student.admissionNumber} · ${classLabel} · ${student.status}`}
       actions={
         student.status === "APPLIED" && canManage ? (
           <ApproveStudentButton studentId={student.id} />
         ) : undefined
       }
     >
+      {canManage && (
+        <div className="mb-6 max-w-2xl">
+          <StudentEditForm
+            studentId={student.id}
+            arms={arms.map((a) => ({
+              id: a.id,
+              label: `${a.schoolClass.name} ${a.name}`,
+            }))}
+            initial={{
+              firstName: student.firstName,
+              lastName: student.lastName,
+              otherNames: student.otherNames ?? "",
+              gender: student.gender ?? "",
+              address: student.address ?? "",
+              previousSchool: student.previousSchool ?? "",
+              medicalNotes: student.medicalNotes ?? "",
+              armId: student.armId ?? "",
+              status: student.status,
+            }}
+          />
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
         <section className="ledger-block">
           <h2 className="font-serif text-lg mb-3">Bio data</h2>
           <dl className="text-sm space-y-1.5">
+            <Row label="Class / Arm" value={classLabel} />
             <Row label="Gender" value={student.gender ?? "-"} />
             <Row
               label="Date of birth"
