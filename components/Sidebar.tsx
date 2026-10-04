@@ -21,6 +21,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/payroll", label: "Payroll", roles: ["ADMIN", "ACCOUNTANT"] },
   { href: "/classes", label: "Classes & Subjects", roles: ["ADMIN", "IT"] },
   { href: "/timetable", label: "Timetable", roles: ["ADMIN", "IT", "TEACHER", "PRINCIPAL"] },
+  { href: "/modules", label: "Modules hub", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "TEACHER", "ACCOUNTANT"] },
   { href: "/cbt", label: "CBT", roles: ["ADMIN", "IT", "TEACHER", "PRINCIPAL", "STUDENT"] },
   { href: "/library", label: "Library", roles: ["ADMIN", "IT", "SECRETARY", "TEACHER", "PRINCIPAL"] },
   { href: "/hostel", label: "Hostel", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL"] },
