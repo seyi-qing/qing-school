@@ -1,4 +1,4 @@
-# Force Schools ERP — Production Deploy (GitHub + Vercel)
+# Kayvlop Magnificent School (KMS) ERP — Production Deploy (GitHub + Vercel)
 
 This guide gets the app live on Vercel with a real Postgres database.
 Follow in order. Do not skip the database step — **SQLite will not work on Vercel**.
@@ -17,7 +17,7 @@ connection string and `provider` change.
 ## Step 0 — Local sanity (optional but recommended)
 
 ```bash
-cd force-schools-erp
+cd qing-school
 cp .env.example .env
 # Edit .env: set SESSION_SECRET to a long random string
 openssl rand -base64 48
@@ -28,15 +28,14 @@ npm run dev      # http://localhost:3000
 
 Demo logins (password for all: `Password123!`):
 
-| Role        | Email                      |
-|-------------|----------------------------|
-| Admin       | admin@forceschools.test    |
-| Teacher     | teacher@forceschools.test  |
-| Student     | student@forceschools.test  |
-| Parent      | parent@forceschools.test   |
+| Role        | Email                 |
+|-------------|-----------------------|
+| Admin       | admin@kms.sch.ng      |
+| Teacher     | teacher@kms.sch.ng    |
+| Student     | student@kms.sch.ng    |
+| Parent      | parent@kms.sch.ng     |
 
-**Before real school use:** remove the demo-account panel from `app/login/page.tsx`
-and change every seeded password.
+**Before real school use:** change every seeded password and disable `/api/setup/seed`.
 
 ---
 
@@ -49,73 +48,32 @@ and change every seeded password.
 
 ---
 
-## Step 2 — Point Prisma at Postgres
+## Step 2 — Push to GitHub
 
-In `prisma/schema.prisma` change only the datasource block:
-
-```prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-```
-
-(Locally you can keep SQLite in a branch; for production/Vercel use Postgres.)
+Repo: https://github.com/seyi-qing/qing-school
 
 ---
 
-## Step 3 — Push code to GitHub
+## Step 3 — Vercel project
 
-Repo target: `https://github.com/seyi-qing/qing-school.git`
-
-On your machine (with Git installed and logged into GitHub):
-
-```bash
-cd force-schools-erp
-
-git init
-git add .
-git commit -m "Initial Force Schools ERP — production-ready foundation"
-
-git remote add origin https://github.com/seyi-qing/qing-school.git
-git branch -M main
-git push -u origin main
-```
+1. Import the GitHub repo in Vercel.
+2. Framework: Next.js (auto-detected).
+3. Environment variables:
+   - `DATABASE_URL` — Neon/Postgres connection string
+   - `SESSION_SECRET` — long random string
+   - `SETUP_SECRET` — secret used to run one-time seed via `/api/setup/seed?secret=...`
+4. Deploy.
 
 ---
 
-## Step 4 — Deploy on Vercel
+## Step 4 — Seed production (KMS accounts)
 
-1. Go to https://vercel.com → Log in with GitHub.
-2. **Add New Project** → Import `seyi-qing/qing-school`.
-3. Framework preset: **Next.js** (auto-detected).
-4. **Environment Variables**:
+After the first successful deploy, open once (replace SECRET):
 
-| Name              | Value                                      |
-|-------------------|--------------------------------------------|
-| `DATABASE_URL`    | your Neon connection string                |
-| `SESSION_SECRET`  | output of `openssl rand -base64 48`        |
-| `PAYSTACK_SECRET_KEY` | (optional, leave empty = mock)         |
-| `FLUTTERWAVE_SECRET_KEY` | (optional)                          |
-| `TERMII_API_KEY`  | (optional)                                 |
-| `TERMII_SENDER_ID`| `FORCESCH`                                 |
-
-5. Deploy. First build runs `prisma generate` via `postinstall`.
-
-### After first successful deploy — create tables + seed
-
-```bash
-npx prisma db push
-npm run db:seed
+```
+https://qing-school.vercel.app/api/setup/seed?secret=YOUR_SETUP_SECRET
 ```
 
----
+This migrates legacy `@forceschools.test` users to `@kms.sch.ng` and resets the demo password to `Password123!`.
 
-## Step 5 — Post-deploy checklist
-
-- [ ] Remove demo login buttons from `app/login/page.tsx`
-- [ ] Change all seeded passwords
-- [ ] Confirm `/result-checker` works without login
-- [ ] Confirm Admin can log in and see Dashboard
-- [ ] Set a real current term under Admin Settings
-- [ ] Never commit `.env`
+Then log in with `admin@kms.sch.ng` / `Password123!`.

@@ -47,9 +47,9 @@ Password for all: `Password123!`
 | Student | student@kms.sch.ng |
 | Parent | parent@kms.sch.ng |
 
-Result checker demo: admission `KMS/2026/0001`, PIN `184-773-902`.
+Result checker demo: admission `KMS/2025/0001`, PIN `184-773-902`.
 
-> **Note:** Existing production DB may still have `@forceschools.test` accounts until you re-seed. Use those if login fails with the new emails.
+After deploy, run the setup seed once (see DEPLOY.md) to migrate accounts to `@kms.sch.ng`.
 
 ## Branding
 

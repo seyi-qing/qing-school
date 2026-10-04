@@ -6,65 +6,45 @@ import { getSession } from "@/lib/auth";
 const Schema = z.object({
   schoolName: z.string().min(1).max(120),
   motto: z.string().max(200).optional(),
-  footerNote: z.string().max(300).optional(),
-  showPosition: z.boolean().default(true),
-  showAttendance: z.boolean().default(true),
-  principalTitle: z.string().max(80).optional(),
-  headerBg: z.string().max(20).optional(),
-  accentColor: z.string().max(20).optional(),
-  logoUrl: z.string().max(500).optional(),
-  sections: z.array(z.string()).optional(),
+  footerNote: z.string().max(500).optional(),
+  showPosition: z.boolean().optional(),
+  showAttendance: z.boolean().optional(),
+  principalName: z.string().max(120).optional(),
 });
 
 export async function GET() {
-  const tpl = await prisma.reportCardTemplate.findFirst({ orderBy: { updatedAt: "desc" } });
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const row = await prisma.reportTemplate.findFirst();
   return NextResponse.json({
-    template: tpl
-      ? JSON.parse(tpl.configJson)
+    config: row
+      ? JSON.parse(row.config)
       : {
-          schoolName: "Force Schools",
-          motto: "Excellence in Character and Learning",
-          footerNote: "This is a computer-generated report.",
+          schoolName: "Kayvlop Magnificent School",
+          motto: "Education with Godliness",
           showPosition: true,
           showAttendance: true,
-          principalTitle: "Principal",
-          headerBg: "#1a2744",
-          accentColor: "#c9a227",
-          sections: [
-            "header",
-            "studentInfo",
-            "scoresTable",
-            "attendance",
-            "position",
-            "remarks",
-            "signatures",
-            "footer",
-          ],
         },
   });
 }
 
-export async function POST(req: Request) {
+export async function PUT(req: Request) {
   const session = await getSession();
-  if (!session || !["ADMIN", "IT", "PRINCIPAL"].includes(session.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
   const parsed = Schema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Invalid" }, { status: 400 });
-
-  const existing = await prisma.reportCardTemplate.findFirst();
-  if (existing) {
-    await prisma.reportCardTemplate.update({
-      where: { id: existing.id },
-      data: { configJson: JSON.stringify(parsed.data), name: "Default" },
-    });
-  } else {
-    await prisma.reportCardTemplate.create({
-      data: { name: "Default", configJson: JSON.stringify(parsed.data) },
-    });
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid config" }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true, template: parsed.data });
+  const existing = await prisma.reportTemplate.findFirst();
+  const config = JSON.stringify(parsed.data);
+  if (existing) {
+    await prisma.reportTemplate.update({ where: { id: existing.id }, data: { config } });
+  } else {
+    await prisma.reportTemplate.create({ data: { config } });
+  }
+  return NextResponse.json({ ok: true });
 }
