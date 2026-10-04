@@ -7,9 +7,9 @@ import { gradeFor } from "@/lib/grading";
 import { logAudit } from "@/lib/audit";
 
 /** Nigerian continuous assessment defaults: CA1 20 + CA2 20 + Exam 60 = 100 */
-export const CA1_MAX = 20;
-export const CA2_MAX = 20;
-export const EXAM_MAX = 60;
+const CA1_MAX = 20;
+const CA2_MAX = 20;
+const EXAM_MAX = 60;
 
 const ScoreEntrySchema = z.object({
   armSubjectId: z.string(),
@@ -100,7 +100,7 @@ export async function POST(req: Request) {
     userId: session.userId,
     action: "ENTER_SCORES",
     entity: "Score",
-    details: JSON.stringify({ armSubjectId, termId, count: scores.length }),
+    details: { armSubjectId, termId, count: scores.length },
   });
 
   return NextResponse.json({ ok: true, count: scores.length });

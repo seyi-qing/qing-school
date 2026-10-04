@@ -99,13 +99,13 @@ export async function POST(req: Request) {
     userId: session.userId,
     action: "TAKE_ATTENDANCE",
     entity: "Attendance",
-    details: JSON.stringify({
+    details: {
       date,
       count: marks.length,
       absent: marks.filter((m) => m.status === "ABSENT").length,
       smsSent,
       smsSkipped,
-    }),
+    },
   });
 
   return NextResponse.json({

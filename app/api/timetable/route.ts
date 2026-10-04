@@ -112,7 +112,7 @@ export async function POST(req: Request) {
     action: "UPSERT_TIMETABLE_SLOT",
     entity: "TimetableSlot",
     entityId: slot.id,
-    details: conflicts.length ? JSON.stringify({ forced: !!force, conflicts }) : undefined,
+    details: conflicts.length ? { forced: !!force, conflicts } : undefined,
   });
 
   return NextResponse.json({ slot, conflicts });
