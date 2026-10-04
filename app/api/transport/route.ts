@@ -48,6 +48,42 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => null);
 
+  if (body?.action === "createFeeInvoice" && body?.enrollmentId) {
+    const en = await prisma.transportEnrollment.findUnique({
+      where: { id: body.enrollmentId },
+      include: { route: true, student: true },
+    });
+    if (!en || en.status !== "ACTIVE") {
+      return NextResponse.json({ error: "Enrollment not found" }, { status: 404 });
+    }
+    if (!en.route.feeAmount || en.route.feeAmount <= 0) {
+      return NextResponse.json({ error: "Route has no fee amount set" }, { status: 400 });
+    }
+    const term = await prisma.term.findFirst({ where: { isCurrent: true } });
+    if (!term) {
+      return NextResponse.json({ error: "No current term set" }, { status: 400 });
+    }
+    const inv = await prisma.invoice.create({
+      data: {
+        studentId: en.studentId,
+        termId: term.id,
+        lineItems: JSON.stringify([
+          { name: `Transport: ${en.route.name}`, amount: en.route.feeAmount },
+        ]),
+        totalAmount: en.route.feeAmount,
+        status: "UNPAID",
+      },
+    });
+    await logAudit({
+      userId: session.userId,
+      action: "TRANSPORT_FEE_INVOICE",
+      entity: "Invoice",
+      entityId: inv.id,
+      details: { enrollmentId: en.id, route: en.route.name },
+    });
+    return NextResponse.json({ invoice: inv });
+  }
+
   if (body?.action === "unenroll" && body?.enrollmentId) {
     const en = await prisma.transportEnrollment.update({
       where: { id: body.enrollmentId },
