@@ -68,9 +68,17 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
       title={`${student.firstName} ${student.lastName}`}
       subtitle={`${student.admissionNumber} · ${classLabel} · ${student.status}`}
       actions={
-        student.status === "APPLIED" && canManage ? (
-          <ApproveStudentButton studentId={student.id} />
-        ) : undefined
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={`/students/${student.id}/report-card`}
+            className="text-xs sm:text-sm border border-navy text-navy px-3 py-1.5 hover:bg-navy hover:text-paper"
+          >
+            Report card
+          </a>
+          {student.status === "APPLIED" && canManage ? (
+            <ApproveStudentButton studentId={student.id} />
+          ) : null}
+        </div>
       }
     >
       {canManage && (
@@ -89,6 +97,7 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
               address: student.address ?? "",
               previousSchool: student.previousSchool ?? "",
               medicalNotes: student.medicalNotes ?? "",
+              guardianPhone: student.guardianPhone ?? "",
               armId: student.armId ?? "",
               status: student.status,
             }}
@@ -117,6 +126,7 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
             <Row label="Address" value={student.address ?? "-"} />
             <Row label="Previous school" value={student.previousSchool ?? "-"} />
             <Row label="Status" value={student.status} />
+            <Row label="Guardian phone" value={student.guardianPhone ?? "-"} />
             <Row label="Medical / notes" value={student.medicalNotes ?? "None recorded"} />
             <Row
               label="Guardian(s)"
