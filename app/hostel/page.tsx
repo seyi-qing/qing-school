@@ -35,8 +35,16 @@ export default async function HostelPage() {
     }),
   ]);
 
+  const beds = rooms.reduce((s, r) => s + r.capacity, 0);
+  const occupied = rooms.reduce((s, r) => s + r.allocations.length, 0);
+  const pct = beds ? Math.round((occupied / beds) * 100) : 0;
+
   return (
-    <PortalShell role={session.role} title="Hostel" subtitle="Rooms and bed allocation">
+    <PortalShell
+      role={session.role}
+      title="Hostel"
+      subtitle={`${occupied}/${beds} beds occupied (${pct}%) · ${rooms.length} rooms`}
+    >
       <HostelClient
         rooms={rooms.map((r) => ({
           id: r.id,
