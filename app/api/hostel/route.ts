@@ -6,9 +6,13 @@ import { logAudit } from "@/lib/audit";
 
 const RoomSchema = z.object({
   name: z.string().min(1).max(80),
-  block: z.string().max(40).optional(),
+  block: z.string().max(40).optional().nullable(),
   capacity: z.coerce.number().int().min(1).max(50).default(4),
-  gender: z.string().max(20).optional(),
+  gender: z.string().max(20).optional().nullable(),
+});
+
+const UpdateRoomSchema = RoomSchema.extend({
+  id: z.string().min(1),
 });
 
 const AllocateSchema = z.object({
@@ -40,6 +44,81 @@ export async function GET() {
   return NextResponse.json({ rooms });
 }
 
+export async function PATCH(req: Request) {
+  const session = await getSession();
+  if (!session || !canManage(session.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const body = await req.json().catch(() => null);
+  const parsed = UpdateRoomSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid room data" }, { status: 400 });
+  }
+
+  const room = await prisma.hostelRoom.findUnique({
+    where: { id: parsed.data.id },
+    include: { allocations: { where: { status: "ACTIVE" } } },
+  });
+  if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
+
+  if (parsed.data.capacity < room.allocations.length) {
+    return NextResponse.json(
+      { error: `Capacity cannot be below current occupancy (${room.allocations.length}).` },
+      { status: 400 }
+    );
+  }
+
+  const updated = await prisma.hostelRoom.update({
+    where: { id: room.id },
+    data: {
+      name: parsed.data.name.trim(),
+      block: parsed.data.block?.trim() || null,
+      capacity: parsed.data.capacity,
+      gender: parsed.data.gender?.trim() || null,
+    },
+  });
+
+  await logAudit({
+    userId: session.userId,
+    action: "UPDATE_HOSTEL_ROOM",
+    entity: "HostelRoom",
+    entityId: updated.id,
+  });
+
+  return NextResponse.json({ room: updated });
+}
+
+export async function DELETE(req: Request) {
+  const session = await getSession();
+  if (!session || !canManage(session.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const body = await req.json().catch(() => null);
+  const id = typeof body?.id === "string" ? body.id : null;
+  if (!id) return NextResponse.json({ error: "Room id required" }, { status: 400 });
+
+  const active = await prisma.hostelAllocation.count({
+    where: { roomId: id, status: "ACTIVE" },
+  });
+  if (active > 0) {
+    return NextResponse.json(
+      { error: `Cannot delete: ${active} active allocation(s). Vacate first.` },
+      { status: 409 }
+    );
+  }
+
+  await prisma.hostelRoom.delete({ where: { id } });
+  await logAudit({
+    userId: session.userId,
+    action: "DELETE_HOSTEL_ROOM",
+    entity: "HostelRoom",
+    entityId: id,
+  });
+  return NextResponse.json({ ok: true });
+}
+
 export async function POST(req: Request) {
   const session = await getSession();
   if (!session || !canManage(session.role)) {
@@ -48,7 +127,6 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => null);
 
-  // Vacate
   if (body?.action === "vacate" && body?.allocationId) {
     const alloc = await prisma.hostelAllocation.update({
       where: { id: body.allocationId },
@@ -63,7 +141,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  // Allocate
   if (body?.roomId && body?.studentId) {
     const parsed = AllocateSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: "Invalid allocation" }, { status: 400 });
@@ -101,16 +178,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ allocation: alloc }, { status: 201 });
   }
 
-  // Create room
   const parsed = RoomSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid room data" }, { status: 400 });
 
   const room = await prisma.hostelRoom.create({
     data: {
-      name: parsed.data.name,
-      block: parsed.data.block || null,
+      name: parsed.data.name.trim(),
+      block: parsed.data.block?.trim() || null,
       capacity: parsed.data.capacity,
-      gender: parsed.data.gender || null,
+      gender: parsed.data.gender?.trim() || null,
     },
   });
 
