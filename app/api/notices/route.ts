@@ -7,6 +7,7 @@ import { logAudit } from "@/lib/audit";
 import { sendSms } from "@/lib/integrations/messaging";
 import { extractPhone } from "@/lib/phone";
 import { SCHOOL } from "@/lib/school-config";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 
 const NoticeSchema = z.object({
   title: z.string().min(1),
@@ -17,7 +18,13 @@ const NoticeSchema = z.object({
 });
 
 export async function GET() {
-  const notices = await prisma.notice.findMany({ orderBy: { createdAt: "desc" }, take: 50 });
+  const session = await getSession();
+  const schoolId = session ? await resolveSchoolId(session) : null;
+  const notices = await prisma.notice.findMany({
+    where: schoolWhere(schoolId),
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
   return NextResponse.json({ notices });
 }
 
@@ -34,7 +41,10 @@ export async function POST(req: Request) {
   }
   const { alsoSendSms, ...data } = parsed.data;
 
-  const notice = await prisma.notice.create({ data: { ...data, createdBy: session.userId } });
+  const schoolId = await resolveSchoolId(session);
+  const notice = await prisma.notice.create({
+    data: { ...data, createdBy: session.userId, schoolId: schoolId ?? undefined },
+  });
 
   let smsSent = 0;
   let smsSkipped = 0;
@@ -43,7 +53,9 @@ export async function POST(req: Request) {
     const smsBody = `${SCHOOL.shortName}: ${data.title}. ${data.body}`.slice(0, 320);
 
     if (data.audience === "STAFF" || data.audience === "ALL") {
-      const staffWithPhones = await prisma.staff.findMany({ where: { phone: { not: null } } });
+      const staffWithPhones = await prisma.staff.findMany({
+        where: { phone: { not: null }, ...schoolWhere(schoolId) },
+      });
       for (const s of staffWithPhones) {
         if (!s.phone) continue;
         const r = await sendSms({ to: s.phone, body: smsBody });
@@ -54,7 +66,7 @@ export async function POST(req: Request) {
 
     if (data.audience === "PARENTS" || data.audience === "ALL") {
       const students = await prisma.student.findMany({
-        where: { status: "ACTIVE" },
+        where: { status: "ACTIVE", ...schoolWhere(schoolId) },
         select: { guardianPhone: true, medicalNotes: true },
       });
       const seen = new Set<string>();

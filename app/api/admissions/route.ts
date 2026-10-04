@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { ensureDefaultSchool } from "@/lib/tenant";
+import { assertUnderStudentCap } from "@/lib/tenant-scope";
 
 const ApplicationSchema = z.object({
   firstName: z.string().min(1).max(80),
@@ -32,10 +34,6 @@ async function nextAdmissionNumber() {
   return `${prefix}${String(seq).padStart(4, "0")}`;
 }
 
-/**
- * Public online admission application.
- * Creates a student with status APPLIED for office review.
- */
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const parsed = ApplicationSchema.safeParse(body);
@@ -47,6 +45,11 @@ export async function POST(req: Request) {
   }
 
   const d = parsed.data;
+  const school = await ensureDefaultSchool();
+  const cap = await assertUnderStudentCap(school.id);
+  if (!cap.ok) {
+    return NextResponse.json({ error: cap.error }, { status: 403 });
+  }
   const admissionNumber = await nextAdmissionNumber();
 
   const medicalNotes = [
@@ -61,6 +64,7 @@ export async function POST(req: Request) {
 
   const student = await prisma.student.create({
     data: {
+      schoolId: school.id,
       admissionNumber,
       firstName: d.firstName,
       lastName: d.lastName,
