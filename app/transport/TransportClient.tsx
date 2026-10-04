@@ -85,6 +85,24 @@ export function TransportClient({
     router.refresh();
   }
 
+  async function billFee(enrollmentId: string) {
+    setBusy(true);
+    setMsg("");
+    const res = await fetch("/api/transport", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "createFeeInvoice", enrollmentId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      setMsg(data.error || "Could not create invoice");
+      return;
+    }
+    setMsg("Transport fee invoice created.");
+    router.refresh();
+  }
+
   return (
     <div className="space-y-6">
       {msg && <p className="text-sm text-brick">{msg}</p>}
@@ -147,14 +165,24 @@ export function TransportClient({
                     {x.studentName}
                     <span className="text-xs text-ink/50 block">{x.admissionNumber}</span>
                   </div>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => unenroll(x.id)}
-                    className="text-xs text-brick underline shrink-0"
-                  >
-                    Remove
-                  </button>
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => billFee(x.id)}
+                      className="text-xs text-navy underline"
+                    >
+                      Bill fee
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => unenroll(x.id)}
+                      className="text-xs text-brick underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </li>
               ))}
               {r.riders.length === 0 && <li className="text-ink/40 text-xs">No riders yet</li>}
