@@ -6,10 +6,14 @@ import { logAudit } from "@/lib/audit";
 
 const RouteSchema = z.object({
   name: z.string().min(1).max(120),
-  vehicle: z.string().max(80).optional(),
-  driverName: z.string().max(80).optional(),
-  driverPhone: z.string().max(30).optional(),
+  vehicle: z.string().max(80).optional().nullable(),
+  driverName: z.string().max(80).optional().nullable(),
+  driverPhone: z.string().max(30).optional().nullable(),
   feeAmount: z.coerce.number().min(0).default(0),
+});
+
+const UpdateRouteSchema = RouteSchema.extend({
+  id: z.string().min(1),
 });
 
 const EnrollSchema = z.object({
@@ -38,6 +42,84 @@ export async function GET() {
   });
 
   return NextResponse.json({ routes });
+}
+
+export async function PATCH(req: Request) {
+  const session = await getSession();
+  if (!session || !canManage(session.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const body = await req.json().catch(() => null);
+  const parsed = UpdateRouteSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid route data" },
+      { status: 400 }
+    );
+  }
+
+  const existing = await prisma.transportRoute.findUnique({ where: { id: parsed.data.id } });
+  if (!existing) return NextResponse.json({ error: "Route not found" }, { status: 404 });
+
+  const route = await prisma.transportRoute.update({
+    where: { id: parsed.data.id },
+    data: {
+      name: parsed.data.name.trim(),
+      vehicle: parsed.data.vehicle?.trim() || null,
+      driverName: parsed.data.driverName?.trim() || null,
+      driverPhone: parsed.data.driverPhone?.trim() || null,
+      feeAmount: parsed.data.feeAmount,
+    },
+  });
+
+  await logAudit({
+    userId: session.userId,
+    action: "UPDATE_TRANSPORT_ROUTE",
+    entity: "TransportRoute",
+    entityId: route.id,
+    details: {
+      name: route.name,
+      driverName: route.driverName,
+      driverPhone: route.driverPhone,
+      feeAmount: route.feeAmount,
+    },
+  });
+
+  return NextResponse.json({ route });
+}
+
+export async function DELETE(req: Request) {
+  const session = await getSession();
+  if (!session || !canManage(session.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const body = await req.json().catch(() => null);
+  const id = typeof body?.id === "string" ? body.id : null;
+  if (!id) return NextResponse.json({ error: "Route id required" }, { status: 400 });
+
+  const activeRiders = await prisma.transportEnrollment.count({
+    where: { routeId: id, status: "ACTIVE" },
+  });
+  if (activeRiders > 0) {
+    return NextResponse.json(
+      {
+        error: `Cannot delete: ${activeRiders} active rider(s). Remove them first.`,
+      },
+      { status: 409 }
+    );
+  }
+
+  await prisma.transportRoute.delete({ where: { id } });
+  await logAudit({
+    userId: session.userId,
+    action: "DELETE_TRANSPORT_ROUTE",
+    entity: "TransportRoute",
+    entityId: id,
+  });
+
+  return NextResponse.json({ ok: true });
 }
 
 export async function POST(req: Request) {
@@ -130,10 +212,10 @@ export async function POST(req: Request) {
 
   const route = await prisma.transportRoute.create({
     data: {
-      name: parsed.data.name,
-      vehicle: parsed.data.vehicle || null,
-      driverName: parsed.data.driverName || null,
-      driverPhone: parsed.data.driverPhone || null,
+      name: parsed.data.name.trim(),
+      vehicle: parsed.data.vehicle?.trim() || null,
+      driverName: parsed.data.driverName?.trim() || null,
+      driverPhone: parsed.data.driverPhone?.trim() || null,
       feeAmount: parsed.data.feeAmount,
     },
   });
