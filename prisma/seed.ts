@@ -5,17 +5,32 @@ import { DEFAULT_GRADE_BANDS } from "../lib/grading";
 const prisma = new PrismaClient();
 const DEMO_PASSWORD = "Password123!";
 
-async function upsertUser(email: string, role: any) {
+/** Prefer KMS emails; migrate legacy @forceschools.test if present. */
+async function upsertUser(email: string, role: any, legacyEmail?: string) {
   const passwordHash = await hashPassword(DEMO_PASSWORD);
+
+  if (legacyEmail) {
+    const legacy = await prisma.user.findUnique({ where: { email: legacyEmail } });
+    if (legacy) {
+      const taken = await prisma.user.findUnique({ where: { email } });
+      if (!taken || taken.id === legacy.id) {
+        return prisma.user.update({
+          where: { id: legacy.id },
+          data: { email, passwordHash, role, isActive: true },
+        });
+      }
+    }
+  }
+
   return prisma.user.upsert({
     where: { email },
-    update: {},
+    update: { passwordHash, role, isActive: true },
     create: { email, passwordHash, role },
   });
 }
 
 async function main() {
-  console.log("Seeding database...");
+  console.log("Seeding Kayvlop Magnificent School (KMS)...");
 
   const existingBands = await prisma.gradeBand.count();
   if (existingBands === 0) {
@@ -35,24 +50,26 @@ async function main() {
     });
   }
 
-  await upsertUser("admin@forceschools.test", "ADMIN");
-  await upsertUser("it@forceschools.test", "IT");
-  await upsertUser("secretary@forceschools.test", "SECRETARY");
-  await upsertUser("principal@forceschools.test", "PRINCIPAL");
-  await upsertUser("accountant@forceschools.test", "ACCOUNTANT");
-  const teacherUser = await upsertUser("teacher@forceschools.test", "TEACHER");
-  const studentUser = await upsertUser("student@forceschools.test", "STUDENT");
-  const parentUser = await upsertUser("parent@forceschools.test", "PARENT");
+  await upsertUser("admin@kms.sch.ng", "ADMIN", "admin@forceschools.test");
+  await upsertUser("it@kms.sch.ng", "IT", "it@forceschools.test");
+  await upsertUser("secretary@kms.sch.ng", "SECRETARY", "secretary@forceschools.test");
+  await upsertUser("principal@kms.sch.ng", "PRINCIPAL", "principal@forceschools.test");
+  await upsertUser("accountant@kms.sch.ng", "ACCOUNTANT", "accountant@forceschools.test");
+  const teacherUser = await upsertUser("teacher@kms.sch.ng", "TEACHER", "teacher@forceschools.test");
+  const studentUser = await upsertUser("student@kms.sch.ng", "STUDENT", "student@forceschools.test");
+  const parentUser = await upsertUser("parent@kms.sch.ng", "PARENT", "parent@forceschools.test");
 
-  const jss1 = await prisma.schoolClass.upsert({
-    where: { id: "seed-jss1" },
-    update: {},
-    create: { id: "seed-jss1", name: "JSS 1", order: 1 },
-  }).catch(async () => {
-    const existing = await prisma.schoolClass.findFirst({ where: { name: "JSS 1" } });
-    if (existing) return existing;
-    return prisma.schoolClass.create({ data: { name: "JSS 1", order: 1 } });
-  });
+  const jss1 = await prisma.schoolClass
+    .upsert({
+      where: { id: "seed-jss1" },
+      update: {},
+      create: { id: "seed-jss1", name: "JSS 1", order: 1 },
+    })
+    .catch(async () => {
+      const existing = await prisma.schoolClass.findFirst({ where: { name: "JSS 1" } });
+      if (existing) return existing;
+      return prisma.schoolClass.create({ data: { name: "JSS 1", order: 1 } });
+    });
 
   let jss1Gold = await prisma.arm.findFirst({ where: { schoolClassId: jss1.id, name: "Gold" } });
   if (!jss1Gold) {
@@ -85,7 +102,7 @@ async function main() {
     where: { userId: teacherUser.id },
     update: {},
     create: {
-      staffId: "FS-STF-0001",
+      staffId: "KMS-STF-0001",
       userId: teacherUser.id,
       firstName: "Ada",
       lastName: "Okonkwo",
@@ -95,17 +112,35 @@ async function main() {
     },
   });
 
-  let demoStudent = await prisma.student.findFirst({ where: { admissionNumber: "FS/2025/0001" } });
+  let demoStudent = await prisma.student.findFirst({
+    where: {
+      OR: [
+        { admissionNumber: "KMS/2025/0001" },
+        { admissionNumber: "FS/2025/0001" },
+        { userId: studentUser.id },
+      ],
+    },
+  });
   if (!demoStudent) {
     demoStudent = await prisma.student.create({
       data: {
-        admissionNumber: "FS/2025/0001",
+        admissionNumber: "KMS/2025/0001",
         firstName: "Chinedu",
         lastName: "Okafor",
         gender: "Male",
         armId: jss1Gold.id,
         status: "ACTIVE",
         userId: studentUser.id,
+      },
+    });
+  } else {
+    demoStudent = await prisma.student.update({
+      where: { id: demoStudent.id },
+      data: {
+        admissionNumber: "KMS/2025/0001",
+        userId: studentUser.id,
+        status: "ACTIVE",
+        armId: jss1Gold.id,
       },
     });
   }
@@ -116,19 +151,36 @@ async function main() {
     create: { parentId: parentUser.id, studentId: demoStudent.id, relation: "Father" },
   });
 
-  const existingFee = await prisma.feeItem.findFirst({ where: { armId: jss1Gold.id, termId: term.id, name: "Tuition" } });
+  const existingFee = await prisma.feeItem.findFirst({
+    where: { armId: jss1Gold.id, termId: term.id, name: "Tuition" },
+  });
   if (!existingFee) {
-    await prisma.feeItem.create({ data: { armId: jss1Gold.id, termId: term.id, name: "Tuition", amount: 85000, compulsory: true } });
-    await prisma.feeItem.create({ data: { armId: jss1Gold.id, termId: term.id, name: "Books & Materials", amount: 12000, compulsory: true } });
+    await prisma.feeItem.create({
+      data: { armId: jss1Gold.id, termId: term.id, name: "Tuition", amount: 85000, compulsory: true },
+    });
+    await prisma.feeItem.create({
+      data: {
+        armId: jss1Gold.id,
+        termId: term.id,
+        name: "Books & Materials",
+        amount: 12000,
+        compulsory: true,
+      },
+    });
   }
 
-  const existingInv = await prisma.invoice.findFirst({ where: { studentId: demoStudent.id, termId: term.id } });
+  const existingInv = await prisma.invoice.findFirst({
+    where: { studentId: demoStudent.id, termId: term.id },
+  });
   if (!existingInv) {
     await prisma.invoice.create({
       data: {
         studentId: demoStudent.id,
         termId: term.id,
-        lineItems: JSON.stringify([{ name: "Tuition", amount: 85000 }, { name: "Books & Materials", amount: 12000 }]),
+        lineItems: JSON.stringify([
+          { name: "Tuition", amount: 85000 },
+          { name: "Books & Materials", amount: 12000 },
+        ]),
         totalAmount: 97000,
         amountPaid: 40000,
         status: "PARTIAL",
@@ -142,22 +194,39 @@ async function main() {
     create: { code: "184-773-902", termId: term.id },
   });
 
-  const existingNotice = await prisma.notice.findFirst({ where: { title: "Resumption Date for Second Term" } });
-  if (!existingNotice) {
+  const noticeCount = await prisma.notice.count();
+  if (noticeCount === 0) {
     await prisma.notice.create({
       data: {
-        title: "Resumption Date for Second Term",
-        body: "All students are to resume on the 12th of January. School fees for the term are due before resumption.",
+        title: "Welcome to Kayvlop Magnificent School",
+        body: "Portal is live. Use demo accounts to explore each role. Motto: Education with Godliness.",
         audience: "ALL",
         publishToWeb: true,
       },
     });
+  } else {
+    await prisma.notice.updateMany({
+      where: { title: { contains: "Force Schools" } },
+      data: {
+        title: "Welcome to Kayvlop Magnificent School",
+        body: "Portal is live. Use demo accounts to explore each role. Motto: Education with Godliness.",
+      },
+    });
   }
 
-  console.log("\nSeed complete. Demo password for all accounts:", DEMO_PASSWORD);
-  console.log("Result Checker: admission FS/2025/0001, PIN 184-773-902\n");
+  console.log("\nSeed complete.");
+  console.log("Demo password for all accounts:", DEMO_PASSWORD);
+  console.log("Admin:       admin@kms.sch.ng");
+  console.log("Teacher:     teacher@kms.sch.ng");
+  console.log("Student:     student@kms.sch.ng");
+  console.log("Parent:      parent@kms.sch.ng");
+  console.log("Result PIN:  184-773-902  |  Admission: KMS/2025/0001");
+  void teacher;
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1); })
-  .finally(async () => { await prisma.$disconnect(); });
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(() => prisma.$disconnect());

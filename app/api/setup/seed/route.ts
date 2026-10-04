@@ -9,17 +9,41 @@ const DEMO_PASSWORD = "Password123!";
 
 const ACCOUNTS: Array<{
   email: string;
+  legacyEmail: string;
   role: "ADMIN" | "IT" | "SECRETARY" | "PRINCIPAL" | "ACCOUNTANT" | "TEACHER" | "STUDENT" | "PARENT";
 }> = [
-  { email: "admin@forceschools.test", role: "ADMIN" },
-  { email: "it@forceschools.test", role: "IT" },
-  { email: "secretary@forceschools.test", role: "SECRETARY" },
-  { email: "principal@forceschools.test", role: "PRINCIPAL" },
-  { email: "accountant@forceschools.test", role: "ACCOUNTANT" },
-  { email: "teacher@forceschools.test", role: "TEACHER" },
-  { email: "student@forceschools.test", role: "STUDENT" },
-  { email: "parent@forceschools.test", role: "PARENT" },
+  { email: "admin@kms.sch.ng", legacyEmail: "admin@forceschools.test", role: "ADMIN" },
+  { email: "it@kms.sch.ng", legacyEmail: "it@forceschools.test", role: "IT" },
+  { email: "secretary@kms.sch.ng", legacyEmail: "secretary@forceschools.test", role: "SECRETARY" },
+  { email: "principal@kms.sch.ng", legacyEmail: "principal@forceschools.test", role: "PRINCIPAL" },
+  { email: "accountant@kms.sch.ng", legacyEmail: "accountant@forceschools.test", role: "ACCOUNTANT" },
+  { email: "teacher@kms.sch.ng", legacyEmail: "teacher@forceschools.test", role: "TEACHER" },
+  { email: "student@kms.sch.ng", legacyEmail: "student@forceschools.test", role: "STUDENT" },
+  { email: "parent@kms.sch.ng", legacyEmail: "parent@forceschools.test", role: "PARENT" },
 ];
+
+async function upsertKmsUser(
+  email: string,
+  legacyEmail: string,
+  role: (typeof ACCOUNTS)[number]["role"],
+  passwordHash: string
+) {
+  const legacy = await prisma.user.findUnique({ where: { email: legacyEmail } });
+  if (legacy) {
+    const taken = await prisma.user.findUnique({ where: { email } });
+    if (!taken || taken.id === legacy.id) {
+      return prisma.user.update({
+        where: { id: legacy.id },
+        data: { email, passwordHash, role, isActive: true },
+      });
+    }
+  }
+  return prisma.user.upsert({
+    where: { email },
+    update: { passwordHash, role, isActive: true },
+    create: { email, passwordHash, role },
+  });
+}
 
 export async function GET(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret");
@@ -40,11 +64,7 @@ export async function GET(req: NextRequest) {
     const users: Record<string, { id: string; email: string; role: string }> = {};
 
     for (const acc of ACCOUNTS) {
-      const u = await prisma.user.upsert({
-        where: { email: acc.email },
-        update: { passwordHash, role: acc.role, isActive: true },
-        create: { email: acc.email, passwordHash, role: acc.role },
-      });
+      const u = await upsertKmsUser(acc.email, acc.legacyEmail, acc.role, passwordHash);
       users[acc.role] = u;
     }
 
@@ -63,7 +83,6 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Class structure
     let schoolClass = await prisma.schoolClass.findFirst({ where: { name: "JSS 1" } });
     if (!schoolClass) {
       schoolClass = await prisma.schoolClass.create({ data: { name: "JSS 1", order: 1 } });
@@ -77,13 +96,12 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Teacher staff profile
     const teacherUser = users.TEACHER;
     let teacherStaff = await prisma.staff.findUnique({ where: { userId: teacherUser.id } });
     if (!teacherStaff) {
       teacherStaff = await prisma.staff.create({
         data: {
-          staffId: "FS-STF-0001",
+          staffId: "KMS-STF-0001",
           userId: teacherUser.id,
           firstName: "Ade",
           lastName: "Bello",
@@ -94,32 +112,41 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Demo student linked to student login
     const studentUser = users.STUDENT;
     let student = await prisma.student.findFirst({
-      where: { OR: [{ userId: studentUser.id }, { admissionNumber: "FS/2025/0001" }] },
+      where: {
+        OR: [
+          { userId: studentUser.id },
+          { admissionNumber: "KMS/2025/0001" },
+          { admissionNumber: "FS/2025/0001" },
+        ],
+      },
     });
     if (!student) {
       student = await prisma.student.create({
         data: {
-          admissionNumber: "FS/2025/0001",
+          admissionNumber: "KMS/2025/0001",
           userId: studentUser.id,
           firstName: "Chioma",
           lastName: "Okafor",
           gender: "Female",
           status: "ACTIVE",
           armId: arm.id,
-          medicalNotes: "Phone: 08030000001 | Demo student",
+          medicalNotes: "Demo student — Kayvlop Magnificent School",
         },
       });
-    } else if (!student.userId) {
+    } else {
       student = await prisma.student.update({
         where: { id: student.id },
-        data: { userId: studentUser.id, status: "ACTIVE", armId: arm.id },
+        data: {
+          admissionNumber: "KMS/2025/0001",
+          userId: studentUser.id,
+          status: "ACTIVE",
+          armId: arm.id,
+        },
       });
     }
 
-    // Parent link
     const parentUser = users.PARENT;
     const existingLink = await prisma.parentLink.findFirst({
       where: { parentId: parentUser.id, studentId: student.id },
@@ -134,7 +161,6 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Optional subject + invoice so portals are not empty
     let math = await prisma.subject.findFirst({ where: { name: "Mathematics" } });
     if (!math) {
       math = await prisma.subject.create({ data: { name: "Mathematics", code: "MTH" } });
@@ -162,12 +188,20 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    await prisma.notice.updateMany({
+      where: { OR: [{ title: { contains: "Force Schools" } }, { body: { contains: "Force Schools" } }] },
+      data: {
+        title: "Welcome to Kayvlop Magnificent School",
+        body: "Portal is live. Use demo accounts to explore each role. Motto: Education with Godliness.",
+      },
+    });
+
     const noticeCount = await prisma.notice.count();
     if (noticeCount === 0) {
       await prisma.notice.create({
         data: {
-          title: "Welcome to Force Schools",
-          body: "Portal is live. Use demo accounts to explore each role.",
+          title: "Welcome to Kayvlop Magnificent School",
+          body: "Portal is live. Use demo accounts to explore each role. Motto: Education with Godliness.",
           audience: "ALL",
           publishToWeb: true,
         },
@@ -176,7 +210,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      message: "Full seed complete — users, class, linked student/parent/teacher, sample invoice",
+      message: "KMS seed complete — accounts migrated to @kms.sch.ng",
       password: DEMO_PASSWORD,
       accounts: ACCOUNTS.map((a) => `${a.role}: ${a.email}`),
       studentAdmission: student.admissionNumber,
