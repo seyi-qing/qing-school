@@ -59,6 +59,31 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Invalid secret" }, { status: 401 });
   }
 
+  // Production lock: set ALLOW_SETUP_SEED=false after first migration
+  const allow = process.env.ALLOW_SETUP_SEED;
+  if (allow === "false" || allow === "0") {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "Setup seed is disabled (ALLOW_SETUP_SEED=false). Re-enable temporarily in Vercel env to migrate, then disable again.",
+      },
+      { status: 403 }
+    );
+  }
+
+  const confirm = req.nextUrl.searchParams.get("confirm");
+  if (confirm !== "MIGRATE") {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "Add &confirm=MIGRATE to the URL to run seed (one-time account migration). Example: /api/setup/seed?secret=...&confirm=MIGRATE",
+      },
+      { status: 400 }
+    );
+  }
+
   try {
     const passwordHash = await hashPassword(DEMO_PASSWORD);
     const users: Record<string, { id: string; email: string; role: string }> = {};
@@ -189,7 +214,9 @@ export async function GET(req: NextRequest) {
     }
 
     await prisma.notice.updateMany({
-      where: { OR: [{ title: { contains: "Force Schools" } }, { body: { contains: "Force Schools" } }] },
+      where: {
+        OR: [{ title: { contains: "Force Schools" } }, { body: { contains: "Force Schools" } }],
+      },
       data: {
         title: "Welcome to Kayvlop Magnificent School",
         body: "Portal is live. Use demo accounts to explore each role. Motto: Education with Godliness.",
@@ -221,6 +248,7 @@ export async function GET(req: NextRequest) {
         parentUserId: parentUser.id,
       },
       loginUrl: "/login",
+      tip: "Set ALLOW_SETUP_SEED=false in Vercel after migration, and change the admin password.",
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
