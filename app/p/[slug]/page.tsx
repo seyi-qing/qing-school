@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { blocksToHtml, parseBlocks } from "@/lib/cms-blocks";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { SCHOOL } from "@/lib/school-config";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +28,6 @@ export async function generateMetadata({
 
 export default async function PublicCmsPage({ params }: { params: { slug: string } }) {
   if (params.slug === "home") {
-    // homepage is /
     const { redirect } = await import("next/navigation");
     redirect("/");
   }
@@ -57,7 +57,7 @@ export default async function PublicCmsPage({ params }: { params: { slug: string
         style={{ background: theme.primary }}
       >
         <Link href="/" className="font-serif text-lg">
-          Force Schools
+          {SCHOOL.headerName}
         </Link>
         <Link href="/login" className="text-sm border px-3 py-1" style={{ borderColor: theme.accent }}>
           Portal
