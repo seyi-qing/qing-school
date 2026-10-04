@@ -10,7 +10,7 @@ export async function sendSms(params: { to: string; body: string }): Promise<{ o
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: params.to.replace(/^\+/, ""),
-          from: process.env.TERMII_SENDER_ID || "ForceSch",
+          from: process.env.TERMII_SENDER_ID || "KMS",
           sms: params.body,
           type: "plain",
           channel: "generic",
