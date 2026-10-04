@@ -38,8 +38,16 @@ export default async function SettingsPage() {
     <PortalShell
       role={session.role}
       title="Admin Settings"
-      subtitle="Session/term, grading, result PINs, audit trail"
+      subtitle="Session/term, grading, result PINs, audit trail, go-live"
     >
+      <div className="mb-4">
+        <a
+          href="/settings/go-live"
+          className="inline-block border border-navy text-navy text-sm px-4 py-2 hover:bg-navy hover:text-paper"
+        >
+          Go-live checklist (Phase 2–3)
+        </a>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <section className="ledger-block">
           <h2 className="font-serif text-lg mb-3">Session & Term Manager</h2>
