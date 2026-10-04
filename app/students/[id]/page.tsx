@@ -4,6 +4,7 @@ import { PortalShell } from "@/components/PortalShell";
 import { StudentDocuments } from "@/components/StudentDocuments";
 import { ApproveStudentButton } from "@/components/ApproveStudentButton";
 import { StudentEditForm } from "@/components/StudentEditForm";
+import { StudentLifecycleActions } from "@/components/StudentLifecycleActions";
 import { can } from "@/lib/permissions";
 import { formatNaira, formatDate } from "@/lib/format";
 import { notFound, redirect } from "next/navigation";
@@ -73,7 +74,7 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
       }
     >
       {canManage && (
-        <div className="mb-6 max-w-2xl">
+        <div className="mb-6 max-w-2xl space-y-4">
           <StudentEditForm
             studentId={student.id}
             arms={arms.map((a) => ({
@@ -91,6 +92,14 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
               armId: student.armId ?? "",
               status: student.status,
             }}
+          />
+          <StudentLifecycleActions
+            studentId={student.id}
+            admissionNumber={student.admissionNumber}
+            fullName={`${student.firstName} ${student.lastName}`}
+            status={student.status}
+            isAdmin={["ADMIN", "IT"].includes(session.role)}
+            hasPaidFees={student.invoices.some((inv) => inv.amountPaid > 0)}
           />
         </div>
       )}
