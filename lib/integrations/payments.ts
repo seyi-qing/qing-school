@@ -8,6 +8,8 @@
  * the browser redirect alone.
  */
 
+import { SCHOOL } from "@/lib/school-config";
+
 export type PaymentProvider = "PAYSTACK" | "FLUTTERWAVE";
 
 interface InitResult {
@@ -25,7 +27,9 @@ function appBaseUrl() {
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.VERCEL_URL ||
     "http://localhost:3000"
-  ).replace(/\/$/, "").replace(/^(?!https?:\/\/)/, "https://");
+  )
+    .replace(/\/$/, "")
+    .replace(/^(?!https?:\/\/)/, "https://");
 }
 
 /** Start an online payment. Returns a URL to redirect the payer to. */
@@ -38,7 +42,7 @@ export async function initializePayment(params: {
 }): Promise<InitResult> {
   const reference =
     params.reference ||
-    `FS-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    `${SCHOOL.paymentRefPrefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   if (isMockMode(params.provider)) {
     return { authorizationUrl: `/pay/${reference}`, reference };
@@ -85,7 +89,7 @@ export async function initializePayment(params: {
       customer: { email: params.email },
       meta: params.metadata,
       customizations: {
-        title: "Force Schools Fees",
+        title: `${SCHOOL.shortName} Fees`,
         description: "School fee payment",
       },
     }),
