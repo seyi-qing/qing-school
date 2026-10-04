@@ -29,6 +29,8 @@ export function can(role: Role | undefined | null, permission: Permission): bool
 
 export function homeRouteForRole(role: Role): string {
   switch (role) {
+    case "PLATFORM_ADMIN":
+      return "/platform";
     case "STUDENT":
       return "/portal/student";
     case "PARENT":

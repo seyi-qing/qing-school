@@ -25,6 +25,7 @@ export interface SessionPayload {
   userId: string;
   role: Role;
   email: string;
+  schoolId?: string | null;
   [key: string]: unknown;
 }
 

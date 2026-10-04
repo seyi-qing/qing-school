@@ -29,8 +29,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
   }
 
-  await createSession({ userId: user.id, role: user.role, email: user.email });
-  await logAudit({ userId: user.id, action: "LOGIN", entity: "User", entityId: user.id });
+  await createSession({
+    userId: user.id,
+    role: user.role,
+    email: user.email,
+    schoolId: user.schoolId ?? null,
+  });
+  await logAudit({
+    userId: user.id,
+    action: "LOGIN",
+    entity: "User",
+    entityId: user.id,
+    details: { schoolId: user.schoolId },
+  });
 
-  return NextResponse.json({ redirectTo: homeRouteForRole(user.role) });
+  const redirectTo =
+    user.role === "PLATFORM_ADMIN" ? "/platform" : homeRouteForRole(user.role);
+  return NextResponse.json({ redirectTo });
 }

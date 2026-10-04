@@ -17,6 +17,8 @@ const PUBLIC_PATHS = [
   "/result-checker",
   "/pay",
   "/p",
+  "/onboarding",
+  "/api/onboarding",
 ];
 
 const PORTAL_RULES: Array<{ prefix: string; roles: string[] }> = [
@@ -58,14 +60,17 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const rule = PORTAL_RULES.find((r) => pathname.startsWith(r.prefix));
-  if (rule && !rule.roles.includes(role)) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+  for (const rule of PORTAL_RULES) {
+    if (pathname === rule.prefix || pathname.startsWith(rule.prefix + "/")) {
+      if (!rule.roles.includes(role)) {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+    }
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|logo.svg|logo.png).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|logo.svg|.*\\.png$).*)"],
 };
