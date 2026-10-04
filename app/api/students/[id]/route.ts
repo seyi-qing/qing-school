@@ -43,8 +43,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const body = await req.json().catch(() => ({}));
   const allowedFields = [
-    "firstName", "lastName", "otherNames", "gender", "address",
-    "previousSchool", "medicalNotes", "status",
+    "firstName",
+    "lastName",
+    "otherNames",
+    "gender",
+    "address",
+    "previousSchool",
+    "medicalNotes",
+    "status",
   ] as const;
 
   const data: Record<string, unknown> = {};
@@ -52,20 +58,111 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (field in body) data[field] = body[field];
   }
 
-  // Allow assign / clear class arm (empty string → null)
   if ("armId" in body) {
     data.armId = body.armId === "" || body.armId === null ? null : body.armId;
+  }
+
+  if (typeof data.status === "string") {
+    const allowed = ["ACTIVE", "APPLIED", "WITHDRAWN", "GRADUATED"];
+    if (!allowed.includes(data.status)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
   }
 
   const student = await prisma.student.update({ where: { id: params.id }, data });
 
   await logAudit({
     userId: session.userId,
-    action: "UPDATE_STUDENT",
+    action: data.status === "WITHDRAWN" ? "WITHDRAW_STUDENT" : "UPDATE_STUDENT",
     entity: "Student",
     entityId: student.id,
     details: data,
   });
 
   return NextResponse.json({ student });
+}
+
+/** Permanent delete — Admin/IT only. Requires matching admission number. */
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  const session = await getSession();
+  if (!session || !["ADMIN", "IT"].includes(session.role)) {
+    return NextResponse.json(
+      { error: "Only Admin or IT can permanently delete a student." },
+      { status: 403 }
+    );
+  }
+
+  const body = await req.json().catch(() => ({}));
+  const confirmAdmissionNumber =
+    typeof body.confirmAdmissionNumber === "string" ? body.confirmAdmissionNumber.trim() : "";
+  const force = body.force === true;
+
+  const student = await prisma.student.findUnique({
+    where: { id: params.id },
+    include: {
+      invoices: { select: { amountPaid: true, totalAmount: true } },
+      _count: {
+        select: {
+          scores: true,
+          attendances: true,
+          invoices: true,
+          payments: true,
+        },
+      },
+    },
+  });
+
+  if (!student) {
+    return NextResponse.json({ error: "Student not found" }, { status: 404 });
+  }
+
+  if (confirmAdmissionNumber !== student.admissionNumber) {
+    return NextResponse.json(
+      {
+        error: "Confirmation failed. Type the exact admission number to delete.",
+        expected: student.admissionNumber,
+      },
+      { status: 400 }
+    );
+  }
+
+  const paidTotal = student.invoices.reduce((s, inv) => s + (inv.amountPaid || 0), 0);
+  if (paidTotal > 0 && !force) {
+    return NextResponse.json(
+      {
+        error:
+          "Student has fee payments on record. Use Withdraw instead, or pass force: true for duplicate cleanup.",
+        amountPaid: paidTotal,
+      },
+      { status: 409 }
+    );
+  }
+
+  const snapshot = {
+    admissionNumber: student.admissionNumber,
+    name: `${student.firstName} ${student.lastName}`,
+    status: student.status,
+    paidTotal,
+    counts: student._count,
+  };
+
+  await prisma.$transaction(async (tx) => {
+    if (student.userId) {
+      await tx.student.update({
+        where: { id: student.id },
+        data: { userId: null },
+      });
+    }
+    await tx.student.delete({ where: { id: student.id } });
+  });
+
+  await logAudit({
+    userId: session.userId,
+    action: "DELETE_STUDENT",
+    entity: "Student",
+    entityId: params.id,
+    details: { ...snapshot, forced: force },
+  });
+
+  return NextResponse.json({ ok: true, deleted: snapshot });
 }
