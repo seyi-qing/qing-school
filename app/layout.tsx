@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
 import { SCHOOL } from "@/lib/school-config";
+import { ToastProvider } from "@/components/ui/Toast";
 
-// Fraunces is a variable font — do NOT pass a discrete weight array.
 const fraunces = Fraunces({
   subsets: ["latin"],
   variable: "--font-fraunces",
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
-      <body className="font-sans">{children}</body>
+      <body className="font-sans"><ToastProvider>{children}</ToastProvider></body>
     </html>
   );
 }

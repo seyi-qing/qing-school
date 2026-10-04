@@ -40,6 +40,8 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/settings/audit", label: "Audit trail", roles: ["ADMIN", "IT"] },
   { href: "/settings", label: "Admin Settings", roles: ["ADMIN", "IT"] },
   { href: "/settings/go-live", label: "Go-live checklist", roles: ["ADMIN", "IT"] },
+  { href: "/platform", label: "Platform (SaaS)", roles: ["ADMIN", "IT"] },
+  { href: "/onboarding", label: "Onboard school", roles: ["ADMIN", "IT"] },
 ];
 
 export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
