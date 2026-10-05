@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 
 const CreateSchema = z.object({
   category: z.string().min(1).max(80),
@@ -18,16 +19,24 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const schoolId = await resolveSchoolId(session);
   const expenses = await prisma.expenseRecord.findMany({
+    where: schoolWhere(schoolId),
     orderBy: { date: "desc" },
     take: 200,
   });
 
   const incomeAgg = await prisma.payment.aggregate({
-    where: { status: "SUCCESS" },
+    where: {
+      status: "SUCCESS",
+      ...(schoolId ? { student: { schoolId } } : {}),
+    },
     _sum: { amount: true },
   });
-  const expenseAgg = await prisma.expenseRecord.aggregate({ _sum: { amount: true } });
+  const expenseAgg = await prisma.expenseRecord.aggregate({
+    where: schoolWhere(schoolId),
+    _sum: { amount: true },
+  });
 
   return NextResponse.json({
     expenses,
@@ -51,8 +60,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid expense data" }, { status: 400 });
   }
 
+  const schoolIdCreate = await resolveSchoolId(session);
   const exp = await prisma.expenseRecord.create({
     data: {
+      schoolId: schoolIdCreate ?? undefined,
       category: parsed.data.category,
       description: parsed.data.description,
       amount: parsed.data.amount,
