@@ -139,7 +139,7 @@ export async function POST(req: Request) {
     if (!en || en.status !== "ACTIVE") {
       return NextResponse.json({ error: "Enrollment not found" }, { status: 404 });
     }
-    if (!en.route.feeAmount || en.route.feeAmount <= 0) {
+    if (!en.route.feeAmount || Number(en.route.feeAmount) <= 0) {
       return NextResponse.json({ error: "Route has no fee amount set" }, { status: 400 });
     }
     const term = await prisma.term.findFirst({ where: { isCurrent: true } });
@@ -153,7 +153,7 @@ export async function POST(req: Request) {
         lineItems: JSON.stringify([
           { name: `Transport: ${en.route.name}`, amount: en.route.feeAmount },
         ]),
-        totalAmount: en.route.feeAmount,
+        totalAmount: Number(en.route.feeAmount),
         status: "UNPAID",
       },
     });
