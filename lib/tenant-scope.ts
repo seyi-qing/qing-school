@@ -1,11 +1,10 @@
 /**
  * Tenant scoping helpers — use on every list/write for school data.
  * PLATFORM_ADMIN may pass schoolId null (sees all). School users always scoped.
- * Legacy rows with schoolId = null are treated as belonging to the default school
- * until backfilled (common for pre-SaaS KMS data).
+ * After backfillSchoolIds(kms), no null schoolId rows remain on tenant tables.
  */
 import type { SessionPayload } from "@/lib/auth";
-import { ensureDefaultSchool } from "@/lib/tenant";
+import { ensureDefaultSchool, backfillSchoolIds } from "@/lib/tenant";
 
 export async function resolveSchoolId(
   session: SessionPayload | null
@@ -19,15 +18,13 @@ export async function resolveSchoolId(
 
 /**
  * Prisma where fragment for school-owned rows.
- * Includes null schoolId rows so legacy KMS records remain visible.
+ * Strict: only this schoolId. Null rows must be backfilled to KMS first.
  */
 export function schoolWhere(
   schoolId: string | null | undefined
 ): Record<string, unknown> {
   if (!schoolId) return {};
-  return {
-    OR: [{ schoolId }, { schoolId: null }],
-  };
+  return { schoolId };
 }
 
 export async function assertUnderStudentCap(
@@ -58,7 +55,8 @@ export async function assertStudentInTenant(
     select: { id: true, schoolId: true },
   });
   if (!student) return { ok: false, status: 404, error: "Student not found" };
-  if (schoolId && student.schoolId && student.schoolId !== schoolId) {
+  if (!schoolId) return { ok: true };
+  if (student.schoolId !== schoolId) {
     return { ok: false, status: 404, error: "Student not found" };
   }
   return { ok: true };
@@ -74,7 +72,8 @@ export async function assertStaffInTenant(
     select: { id: true, schoolId: true },
   });
   if (!staff) return { ok: false, status: 404, error: "Staff not found" };
-  if (schoolId && staff.schoolId && staff.schoolId !== schoolId) {
+  if (!schoolId) return { ok: true };
+  if (staff.schoolId !== schoolId) {
     return { ok: false, status: 404, error: "Staff not found" };
   }
   return { ok: true };
@@ -89,4 +88,10 @@ export async function resolveSchoolIdFromRequest(req: Request): Promise<string> 
   }
   const school = await ensureDefaultSchool();
   return school.id;
+}
+
+/** Explicit backfill to KMS — also invoked from ensureDefaultSchool. */
+export async function backfillKmsTenant(): Promise<Record<string, number>> {
+  const school = await ensureDefaultSchool();
+  return backfillSchoolIds(school.id);
 }
