@@ -64,3 +64,10 @@ See **DEPLOY.md**. Required env: `DATABASE_URL`, `SESSION_SECRET`.
 ## License
 
 Private — for the school deployment you control.
+
+
+## v1.3.0 production hardening
+
+The v1.3 hardening release makes tenant scope fail closed, adds direct tenant ownership to operational records, moves financial amounts to PostgreSQL Decimal(12,2), hardens payment finalization and webhook verification, disables setup/bootstrap endpoints in production, adds session invalidation and login lockout, and reorganizes the application around role-based command centers. Production deployments must use Prisma migrations; `db push --accept-data-loss` is not a production deployment mechanism.
+
+See `docs/STATUS_P0_P3.md` for the release gate and `CHANGELOG.md` for the detailed change list.
