@@ -21,7 +21,12 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
-  const { armId, termId } = parsed.data;\n  const schoolId = await import("@/lib/tenant-scope").then(m => m.resolveSchoolId(session));\n  if (!schoolId) return NextResponse.json({ error: "School context required." }, { status: 409 });\n  const scope = await prisma.arm.findFirst({ where: { id: armId, schoolId }, select: { id: true } });\n  const term = await prisma.term.findFirst({ where: { id: termId, schoolId }, select: { id: true } });\n  if (!scope || !term) return NextResponse.json({ error: "Class/term is outside your school." }, { status: 403 });
+  const { armId, termId } = parsed.data;
+  const schoolId = await import("@/lib/tenant-scope").then(m => m.resolveSchoolId(session));
+  if (!schoolId) return NextResponse.json({ error: "School context required." }, { status: 409 });
+  const scope = await prisma.arm.findFirst({ where: { id: armId, schoolId }, select: { id: true } });
+  const term = await prisma.term.findFirst({ where: { id: termId, schoolId }, select: { id: true } });
+  if (!scope || !term) return NextResponse.json({ error: "Class/term is outside your school." }, { status: 403 });
 
   const [feeItems, students] = await Promise.all([
     prisma.feeItem.findMany({ where: { armId, termId, compulsory: true } }),
@@ -47,7 +52,8 @@ export async function POST(req: Request) {
         studentId: student.id,
         termId,
         lineItems: JSON.stringify(lineItems),
-        totalAmount: total,\n        schoolId,
+        totalAmount: total,
+        schoolId,
       },
     });
     created++;
