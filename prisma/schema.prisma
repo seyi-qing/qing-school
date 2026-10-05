@@ -84,6 +84,7 @@ model User {
 }
 
 model ParentLink {
+  schoolId String?
   id        String   @id @default(cuid())
   parent    User     @relation(fields: [parentId], references: [id], onDelete: Cascade)
   parentId  String
@@ -107,6 +108,7 @@ model Session {
 }
 
 model Term {
+  schoolId String?
   id          String   @id @default(cuid())
   session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   sessionId   String
@@ -132,6 +134,7 @@ model SchoolClass {
 }
 
 model Arm {
+  schoolId String?
   id             String      @id @default(cuid())
   name           String
   schoolClass    SchoolClass @relation(fields: [schoolClassId], references: [id], onDelete: Cascade)
@@ -153,6 +156,7 @@ model Subject {
 }
 
 model ArmSubject {
+  schoolId String?
   id             String          @id @default(cuid())
   arm            Arm             @relation(fields: [armId], references: [id], onDelete: Cascade)
   armId          String
@@ -166,6 +170,7 @@ model ArmSubject {
 }
 
 model TimetableSlot {
+  schoolId String?
   id           String     @id @default(cuid())
   arm          Arm        @relation(fields: [armId], references: [id], onDelete: Cascade)
   armId        String
@@ -234,6 +239,7 @@ model Student {
 }
 
 model Document {
+  schoolId String?
   id         String   @id @default(cuid())
   student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   studentId  String
@@ -243,6 +249,7 @@ model Document {
 }
 
 model LeaveRequest {
+  schoolId String?
   id        String   @id @default(cuid())
   staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
   staffId   String
@@ -268,6 +275,7 @@ model LibraryBook {
 }
 
 model BookLoan {
+  schoolId String?
   id         String      @id @default(cuid())
   book       LibraryBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
   bookId     String
@@ -292,6 +300,7 @@ model HostelRoom {
 }
 
 model HostelAllocation {
+  schoolId String?
   id          String     @id @default(cuid())
   room        HostelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   roomId      String
@@ -318,6 +327,7 @@ model TransportRoute {
 }
 
 model TransportEnrollment {
+  schoolId String?
   id        String         @id @default(cuid())
   route     TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
   routeId   String
@@ -359,6 +369,7 @@ model CmsPageVersion {
 }
 
 model MediaAsset {
+  schoolId String?
   id         String   @id @default(cuid())
   url        String
   filename   String
@@ -369,6 +380,7 @@ model MediaAsset {
 }
 
 model SiteTheme {
+  schoolId String?
   id         String   @id @default(cuid())
   configJson String
   updatedAt  DateTime @updatedAt
@@ -392,6 +404,7 @@ model CbtExam {
 }
 
 model CbtQuestion {
+  schoolId String?
   id           String  @id @default(cuid())
   exam         CbtExam @relation(fields: [examId], references: [id], onDelete: Cascade)
   examId       String
@@ -405,6 +418,7 @@ model CbtQuestion {
 }
 
 model CbtBankQuestion {
+  schoolId String?
   id           String   @id @default(cuid())
   prompt       String
   type         String   @default("MCQ")
@@ -416,6 +430,7 @@ model CbtBankQuestion {
 }
 
 model CbtAttempt {
+  schoolId String?
   id           String   @id @default(cuid())
   exam         CbtExam  @relation(fields: [examId], references: [id], onDelete: Cascade)
   examId       String
@@ -431,6 +446,7 @@ model CbtAttempt {
 }
 
 model ReportCardTemplate {
+  schoolId String?
   id         String   @id @default(cuid())
   name       String
   configJson String
@@ -439,6 +455,7 @@ model ReportCardTemplate {
 }
 
 model GradeBand {
+  schoolId String?
   id       String @id @default(cuid())
   minScore Float
   maxScore Float
@@ -447,6 +464,7 @@ model GradeBand {
 }
 
 model Score {
+  schoolId String?
   id           String     @id @default(cuid())
   student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
   studentId    String
@@ -465,6 +483,7 @@ model Score {
 }
 
 model Attendance {
+  schoolId String?
   id        String   @id @default(cuid())
   student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   studentId String
@@ -476,6 +495,7 @@ model Attendance {
 }
 
 model ResultPin {
+  schoolId String?
   id        String    @id @default(cuid())
   code      String    @unique
   term      Term      @relation(fields: [termId], references: [id], onDelete: Cascade)
@@ -487,6 +507,7 @@ model ResultPin {
 }
 
 model FeeItem {
+  schoolId String?
   id         String   @id @default(cuid())
   arm        Arm      @relation(fields: [armId], references: [id], onDelete: Cascade)
   armId      String
@@ -498,6 +519,7 @@ model FeeItem {
 }
 
 model Invoice {
+  schoolId String?
   id          String    @id @default(cuid())
   student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   studentId   String
@@ -515,6 +537,7 @@ model Invoice {
 }
 
 model Payment {
+  schoolId String?
   id         String   @id @default(cuid())
   invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   invoiceId  String
@@ -541,6 +564,7 @@ model ExpenseRecord {
 }
 
 model Payslip {
+  schoolId String?
   id          String   @id @default(cuid())
   staff       Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
   staffId     String
@@ -566,6 +590,7 @@ model Notice {
 }
 
 model MessageLog {
+  schoolId String?
   id        String   @id @default(cuid())
   channel   String
   recipient String
