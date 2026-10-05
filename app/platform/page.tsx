@@ -6,8 +6,6 @@ import { ensureDefaultSchool, backfillSchoolIds } from "@/lib/tenant";
 import { PlatformBillingForm } from "@/components/PlatformBillingForm";
 import { isSubscriptionLive, PLAN_LIMITS } from "@/lib/integrations/subscriptions";
 import { PortalShell } from "@/components/PortalShell";
-import { WorkAsSchoolButton } from "@/components/WorkAsSchoolButton";
-import { getActiveSchoolIdFromCookie } from "@/lib/tenant-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +26,6 @@ export default async function PlatformPage() {
   });
 
   const live = isSubscriptionLive();
-  const activeId = await getActiveSchoolIdFromCookie();
-  const activeSchool = activeId
-    ? schools.find((s) => s.id === activeId)
-    : defaultSchool;
 
   return (
     <PortalShell
@@ -52,13 +46,7 @@ export default async function PlatformPage() {
       <div className="space-y-6">
         {session.role === "PLATFORM_ADMIN" && (
           <p className="text-sm text-ink/60 ledger-block">
-            Working as:{" "}
-            <strong className="text-navy">
-              {activeSchool?.name ?? "Kayvlop Magnificent School"}
-            </strong>
-            <span className="text-ink/40">
-              {" "}({activeSchool?.slug ?? "kms"}). Use &quot;Work as this school&quot; before Students / Fees.
-            </span>
+            Platform administrator view. School-scoped operations require an authenticated school session; this page does not establish tenant context.
           </p>
         )}
 
@@ -129,9 +117,7 @@ export default async function PlatformPage() {
                     {s.isDemo ? " · Demo" : ""}
                   </td>
                   <td>
-                    {session.role === "PLATFORM_ADMIN" && (
-                      <WorkAsSchoolButton schoolId={s.id} />
-                    )}
+
                   </td>
                 </tr>
               ))}
