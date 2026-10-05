@@ -46,6 +46,11 @@ async function upsertKmsUser(
 }
 
 export async function GET(req: NextRequest) {
+  // Never permit demo/bootstrap mutation in production. The flag is explicit so a
+  // missing environment variable cannot accidentally enable this endpoint.
+  if (process.env.NODE_ENV === "production" || process.env.ALLOW_SETUP_SEED !== "true") {
+    return NextResponse.json({ ok: false, error: "Setup seed is disabled." }, { status: 404 });
+  }
   const secret = req.nextUrl.searchParams.get("secret");
   const expected = process.env.SETUP_SECRET;
 
@@ -244,7 +249,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       message: "KMS seed complete — accounts migrated to @kms.sch.ng",
-      password: DEMO_PASSWORD,
+      password: undefined,
       accounts: ACCOUNTS.map((a) => `${a.role}: ${a.email}`),
       studentAdmission: student.admissionNumber,
       linked: {
@@ -254,7 +259,7 @@ export async function GET(req: NextRequest) {
         parentUserId: parentUser.id,
       },
       loginUrl: "/login",
-      tip: "Set ALLOW_SETUP_SEED=false in Vercel after migration, and change the admin password.",
+      tip: "Disable ALLOW_SETUP_SEED after controlled bootstrap and rotate all bootstrap credentials.",
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
