@@ -178,7 +178,7 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-function rolePortalLabel(role: Role): string {
+function sectionFor(item: NavItem): string {\n  if (item.section) return item.section;\n  if (["/students","/staff","/leave"].some(p => item.href === p)) return "People";\n  if (["/classes","/timetable","/attendance","/exams","/cbt","/reports"].some(p => item.href === p)) return "Academics";\n  if (["/fees","/fees/structure","/expenses","/payroll"].some(p => item.href === p)) return "Finance";\n  if (["/library","/hostel","/transport","/notices","/cms","/modules"].some(p => item.href === p)) return "Operations";\n  if (item.href.startsWith("/settings") || item.href === "/onboarding" || item.href === "/platform") return "Administration";\n  return "Home";\n}\n\nfunction rolePortalLabel(role: Role): string {
   switch (role) {
     case "PLATFORM_ADMIN":
       return "Platform admin portal";
@@ -206,7 +206,7 @@ function rolePortalLabel(role: Role): string {
 export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const visible = NAV_ITEMS.filter((item) => item.roles.includes(role));
+  const visible = NAV_ITEMS.filter((item) => item.roles.includes(role));\n  const sections = [...new Set(visible.map(sectionFor))];
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -238,23 +238,21 @@ export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => v
       </div>
 
       <nav className="flex-1 min-h-0 py-2 overflow-y-auto overscroll-contain">
-        {visible.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + "/");
-          return (
-            <Link
-              key={`${item.href}-${item.label}`}
-              href={item.href}
-              onClick={onNavigate}
-              className={`block px-5 py-2.5 text-sm border-l-2 ${
-                active
-                  ? "border-gold bg-white/5 text-gold"
-                  : "border-transparent text-paper/75 hover:bg-white/5 hover:text-paper"
-              }`}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
+        {sections.map((section) => (
+          <div key={section} className="mb-2">
+            {section !== "Home" && <p className="px-5 pt-3 pb-1 text-[10px] uppercase tracking-[0.18em] text-paper/35">{section}</p>}
+            {visible.filter(item => sectionFor(item) === section).map((item) => {
+              const active = pathname === item.href || pathname.startsWith(item.href + "/");
+              return (
+                <Link key={`${item.href}-${item.label}`} href={item.href} onClick={onNavigate}
+                  className={`block px-5 py-2.5 text-sm border-l-2 ${
+                    active ? "border-gold bg-white/5 text-gold" : "border-transparent text-paper/75 hover:bg-white/5 hover:text-paper"
+                  }`}
+                >{item.label}</Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       <div className="shrink-0 p-4 border-t border-paper/10 bg-navy">
