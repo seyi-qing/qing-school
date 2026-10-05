@@ -46,7 +46,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid online payment data." }, { status: 400 });
     }
 
-    const { invoiceId, amount, provider, email } = parsed.data;\n    const checkoutSession = await getSession();
+    const { invoiceId, amount, provider, email } = parsed.data;
+    const checkoutSession = await getSession();
     const invoice = await prisma.invoice.findUnique({
       where: { id: invoiceId, ...(checkoutSession?.schoolId ? { schoolId: checkoutSession.schoolId } : {}) },
       include: { student: true },
@@ -80,7 +81,8 @@ export async function POST(req: Request) {
           amount,
           method: provider,
           reference: init.reference,
-          status: "PENDING",\n          schoolId: invoice.schoolId,
+          status: "PENDING",
+          schoolId: invoice.schoolId,
         },
       });
 
