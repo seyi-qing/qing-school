@@ -7,24 +7,14 @@ import type { Role } from "@prisma/client";
 interface NavItem {
   href: string;
   label: string;
-  /** If set, only these roles see the item. Required for every item. */
   roles: Role[];
 }
 
 /**
- * Role-based navigation — each role gets a deliberate menu, not a copy of ADMIN.
- *
- * PLATFORM_ADMIN — SaaS control + full school ops (use "Work as school" on Platform)
- * ADMIN          — full school only (no onboard other tenants)
- * IT             — systems, records, modules (no payroll / fee structure / platform farm)
- * PRINCIPAL      — academics + oversight
- * SECRETARY      — admissions, fees desk, notices, logistics
- * ACCOUNTANT     — money
- * TEACHER        — classwork
- * STUDENT/PARENT — portals only
+ * Role-based navigation.
+ * One password entry only: /account/password (not also Settings → Security).
  */
 const NAV_ITEMS: NavItem[] = [
-  // —— Core ——
   {
     href: "/dashboard",
     label: "Dashboard",
@@ -56,14 +46,12 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
 
-  // —— Portals ——
   { href: "/portal/student", label: "My Portal", roles: ["STUDENT"] },
   { href: "/portal/parent", label: "Family dashboard", roles: ["PARENT"] },
   { href: "/portal/teacher", label: "Teacher Portal", roles: ["TEACHER"] },
   { href: "/notices", label: "School notices", roles: ["PARENT"] },
   { href: "/result-checker", label: "Result checker", roles: ["PARENT"] },
 
-  // —— People ——
   {
     href: "/students",
     label: "Students",
@@ -80,7 +68,6 @@ const NAV_ITEMS: NavItem[] = [
     roles: ["PLATFORM_ADMIN", "ADMIN", "IT", "PRINCIPAL", "TEACHER", "ACCOUNTANT", "SECRETARY"],
   },
 
-  // —— Academics ——
   {
     href: "/classes",
     label: "Classes & Subjects",
@@ -112,7 +99,6 @@ const NAV_ITEMS: NavItem[] = [
     roles: ["PLATFORM_ADMIN", "ADMIN", "PRINCIPAL", "IT"],
   },
 
-  // —— Finance ——
   {
     href: "/fees",
     label: "Fees",
@@ -134,7 +120,6 @@ const NAV_ITEMS: NavItem[] = [
     roles: ["PLATFORM_ADMIN", "ADMIN", "ACCOUNTANT"],
   },
 
-  // —— Operations modules ——
   {
     href: "/modules",
     label: "Modules hub",
@@ -166,15 +151,9 @@ const NAV_ITEMS: NavItem[] = [
     roles: ["PLATFORM_ADMIN", "ADMIN", "IT"],
   },
 
-  // —— Settings (school) ——
   {
     href: "/settings",
     label: "Admin Settings",
-    roles: ["PLATFORM_ADMIN", "ADMIN", "IT"],
-  },
-  {
-    href: "/settings/security",
-    label: "Security",
     roles: ["PLATFORM_ADMIN", "ADMIN", "IT"],
   },
   {
