@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 
 const BookSchema = z.object({
   title: z.string().min(1).max(200),
@@ -37,10 +38,11 @@ export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const schoolId = await resolveSchoolId(session);
   const [books, openLoans] = await Promise.all([
-    prisma.libraryBook.findMany({ orderBy: { title: "asc" } }),
+    prisma.libraryBook.findMany({ where: schoolWhere(schoolId), orderBy: { title: "asc" } }),
     prisma.bookLoan.findMany({
-      where: { returnedAt: null },
+      where: { returnedAt: null, ...(schoolId ? { book: { schoolId } } : {}) },
       include: {
         book: true,
         student: { select: { firstName: true, lastName: true, admissionNumber: true } },
@@ -204,8 +206,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid book data" }, { status: 400 });
   }
 
+  const schoolId = await resolveSchoolId(session);
   const book = await prisma.libraryBook.create({
     data: {
+      schoolId: schoolId ?? undefined,
       title: parsed.data.title.trim(),
       author: parsed.data.author?.trim() || null,
       isbn: parsed.data.isbn?.trim() || null,
