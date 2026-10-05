@@ -44,7 +44,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/platform", label: "Platform", roles: ["PLATFORM_ADMIN"] },
 ];
 
-export function Sidebar({ role }: { role: Role }) {
+export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const items = NAV_ITEMS.filter((i) => !i.roles || i.roles.includes(role));
@@ -56,7 +56,7 @@ export function Sidebar({ role }: { role: Role }) {
   }
 
   return (
-    <aside className="w-56 shrink-0 border-r border-line bg-white min-h-screen p-4 hidden md:block">
+    <aside className="w-full h-full border-r border-line bg-white p-4 overflow-y-auto">
       <p className="font-serif text-lg text-navy mb-4">KMS</p>
       <nav className="space-y-0.5">
         {items.map((item) => {
@@ -65,6 +65,7 @@ export function Sidebar({ role }: { role: Role }) {
             <Link
               key={item.href + item.label}
               href={item.href}
+              onClick={() => onNavigate?.()}
               className={`block text-sm px-3 py-2 rounded ${
                 active ? "bg-navy text-paper" : "text-ink/80 hover:bg-paper"
               }`}
