@@ -1,43 +1,55 @@
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { PortalShell } from "@/components/PortalShell";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { can, homeRouteForRole } from "@/lib/permissions";
 import { formatDate } from "@/lib/format";
 import { SCHOOL } from "@/lib/school-config";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 import { redirect } from "next/navigation";
 import { NoticeForm } from "./NoticeForm";
 
 export const dynamic = "force-dynamic";
 
-function rebrand(text: string) {
-  return text
-    .replace(/Force Schools/gi, SCHOOL.name)
-    .replace(/\bFS\b/g, SCHOOL.shortName);
+/** One-time DB cleanup of legacy demo branding strings. */
+async function scrubLegacyBranding() {
+  const legacy = await prisma.notice.findMany({
+    where: {
+      OR: [
+        { title: { contains: "Force Schools" } },
+        { body: { contains: "Force Schools" } },
+      ],
+    },
+    take: 50,
+  });
+  for (const n of legacy) {
+    await prisma.notice.update({
+      where: { id: n.id },
+      data: {
+        title: n.title.replace(/Force Schools/gi, SCHOOL.name),
+        body: n.body
+          .replace(/Force Schools/gi, SCHOOL.name)
+          .replace(/\bFS\b/g, SCHOOL.shortName),
+      },
+    });
+  }
 }
 
 export default async function NoticesPage() {
   const session = await requireSession();
   if (!can(session.role, "MANAGE_NOTICES")) redirect(homeRouteForRole(session.role));
 
-  // Permanently rewrite any leftover Force Schools notices in DB
-  await prisma.notice.updateMany({
-    where: {
-      OR: [{ title: { contains: "Force Schools" } }, { body: { contains: "Force Schools" } }],
-    },
-    data: {
-      title: `Welcome to ${SCHOOL.name}`,
-      body: "Portal is live. Staff and parents can log in with their accounts. Motto: Education with Godliness.",
-    },
-  });
+  await scrubLegacyBranding();
 
+  const schoolId = await resolveSchoolId(session);
   const [notices, complaints] = await Promise.all([
     prisma.notice.findMany({
-      where: { NOT: { audience: "COMPLAINT" } },
+      where: { NOT: { audience: "COMPLAINT" }, ...schoolWhere(schoolId) },
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
     prisma.notice.findMany({
-      where: { audience: "COMPLAINT" },
+      where: { audience: "COMPLAINT", ...schoolWhere(schoolId) },
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
@@ -50,76 +62,48 @@ export default async function NoticesPage() {
           <h2 className="font-serif text-lg mb-3">Post a notice</h2>
           <NoticeForm />
         </section>
-        <section className="ledger-block !p-0 overflow-x-auto lg:col-span-2">
-          <div className="p-4 pb-0">
-            <h2 className="font-serif text-lg">Recent notices</h2>
-          </div>
-          <table className="ledger mt-3">
-            <thead>
-              <tr>
-                <th>When</th>
-                <th>Title</th>
-                <th>Audience</th>
-                <th>Web</th>
-              </tr>
-            </thead>
-            <tbody>
+        <section className="ledger-block lg:col-span-2">
+          <h2 className="font-serif text-lg mb-3">Recent notices</h2>
+          {notices.length === 0 ? (
+            <EmptyState
+              title="No notices yet"
+              description="Post announcements for parents, staff, or the public website."
+            />
+          ) : (
+            <ul className="space-y-3">
               {notices.map((n) => (
-                <tr key={n.id}>
-                  <td className="text-xs">{formatDate(n.createdAt)}</td>
-                  <td>
-                    <div className="font-medium">{rebrand(n.title)}</div>
-                    <div className="text-xs text-ink/50 line-clamp-2">{rebrand(n.body)}</div>
-                  </td>
-                  <td>{n.audience}</td>
-                  <td>{n.publishToWeb ? "Yes" : "No"}</td>
-                </tr>
+                <li key={n.id} className="border-b border-line pb-3 last:border-0">
+                  <p className="font-medium text-sm">{n.title}</p>
+                  <p className="text-xs text-ink/50 mt-0.5">
+                    {formatDate(n.createdAt)} · {n.audience}
+                    {n.publishToWeb ? " · web" : ""}
+                  </p>
+                  <p className="text-sm text-ink/70 mt-1 whitespace-pre-wrap">{n.body}</p>
+                </li>
               ))}
-              {notices.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="text-center text-ink/50 py-6">
-                    No notices yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+            </ul>
+          )}
         </section>
       </div>
 
-      <section className="ledger-block !p-0 overflow-x-auto">
-        <div className="p-4 pb-0">
-          <h2 className="font-serif text-lg">Complaint inbox</h2>
-          <p className="text-xs text-ink/50">From public form /complaints</p>
-        </div>
-        <table className="ledger mt-3">
-          <thead>
-            <tr>
-              <th>When</th>
-              <th>Subject / message</th>
-            </tr>
-          </thead>
-          <tbody>
-            {complaints.map((c) => (
-              <tr key={c.id}>
-                <td className="text-xs whitespace-nowrap">{formatDate(c.createdAt)}</td>
-                <td>
-                  <div className="font-medium">{rebrand(c.title)}</div>
-                  <pre className="text-xs text-ink/60 whitespace-pre-wrap font-sans mt-1">
-                    {rebrand(c.body)}
-                  </pre>
-                </td>
-              </tr>
+      <section className="ledger-block">
+        <h2 className="font-serif text-lg mb-3">Public complaints / feedback</h2>
+        {complaints.length === 0 ? (
+          <EmptyState
+            title="No complaints"
+            description="Items submitted from the public site appear here."
+          />
+        ) : (
+          <ul className="space-y-3">
+            {complaints.map((n) => (
+              <li key={n.id} className="border-b border-line pb-3 last:border-0">
+                <p className="font-medium text-sm">{n.title}</p>
+                <p className="text-xs text-ink/50">{formatDate(n.createdAt)}</p>
+                <p className="text-sm text-ink/70 mt-1 whitespace-pre-wrap">{n.body}</p>
+              </li>
             ))}
-            {complaints.length === 0 && (
-              <tr>
-                <td colSpan={2} className="text-center text-ink/50 py-6">
-                  No complaints yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+          </ul>
+        )}
       </section>
     </PortalShell>
   );
