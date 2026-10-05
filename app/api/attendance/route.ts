@@ -47,7 +47,10 @@ export async function POST(req: Request) {
       where: { id: { in: ids }, schoolId },
     });
     if (allowed !== ids.length) {
-      return NextResponse.json({ error: "One or more students are outside your school." }, { status: 403 });
+      return NextResponse.json(
+        { error: "One or more students are outside your school." },
+        { status: 403 }
+      );
     }
   }
   const term = await getCurrentTerm();
@@ -92,13 +95,13 @@ export async function POST(req: Request) {
       });
 
       for (const st of students) {
-        const phone = extractPhone(st.guardianPhone) || extractPhone(st.medicalNotes || "");
+        const phone = extractPhone(st.guardianPhone, st.medicalNotes);
         if (!phone) {
           smsSkipped++;
           continue;
         }
         const msg = `${SCHOOL.shortName}: ${st.firstName} ${st.lastName} was marked ABSENT on ${dateLabel}. Contact the school if this is unexpected.`;
-        const result = await sendSms({ to: phone, message: msg });
+        const result = await sendSms({ to: phone, body: msg });
         if (result.ok) smsSent++;
         else smsSkipped++;
       }
