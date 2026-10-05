@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { logAudit } from "@/lib/audit";
+import { logAudit } from "@/lib/audit";\nimport { resolveSchoolId } from "@/lib/tenant-scope";
 
 const CreateSchema = z.object({
   studentId: z.string(),
@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     }
   } else if (session.role === "PARENT") {
     const link = await prisma.parentLink.findFirst({
-      where: { parentId: session.userId, studentId },
+      where: { parentId: session.userId, studentId, schoolId },
     });
     if (!link) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   } else if (!can(session.role, "MANAGE_STUDENTS") && session.role !== "TEACHER" && session.role !== "PRINCIPAL") {
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const doc = await prisma.document.create({ data: parsed.data });
+  const schoolId = await resolveSchoolId(session);\n  if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 409 });\n  const student = await prisma.student.findFirst({ where: { id: parsed.data.studentId, schoolId } });\n  if (!student) return NextResponse.json({ error: "Student not found in your school" }, { status: 403 });\n  const doc = await prisma.document.create({ data: { ...parsed.data, schoolId } });
   await logAudit({
     userId: session.userId,
     action: "ADD_STUDENT_DOCUMENT",
@@ -71,6 +71,6 @@ export async function DELETE(req: Request) {
   }
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
-  await prisma.document.delete({ where: { id } });
+  const schoolId = await resolveSchoolId(session);\n  if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 409 });\n  const document = await prisma.document.findFirst({ where: { id, schoolId } });\n  if (!document) return NextResponse.json({ error: "Document not found" }, { status: 404 });\n  await prisma.document.delete({ where: { id: document.id } });
   return NextResponse.json({ ok: true });
 }
