@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { verifyPassword, createSession } from "@/lib/auth";
 import { homeRouteForRole } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
+import { ensureDefaultSchool } from "@/lib/tenant";
 
 const LoginSchema = z.object({
   email: z.string().email(),
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
   }
 
   const { email, password } = parsed.data;
-  const user = await prisma.user.findUnique({ where: { email } });
+  let user = await prisma.user.findUnique({ where: { email } });
 
   if (!user || !user.isActive) {
     return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
@@ -29,21 +30,37 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
   }
 
+  // Non-platform users without a school get attached to KMS (legacy accounts)
+  let schoolId = user.schoolId;
+  if (!schoolId && user.role !== "PLATFORM_ADMIN") {
+    const kms = await ensureDefaultSchool();
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: { schoolId: kms.id },
+    });
+    schoolId = kms.id;
+  }
+
   const mustChange = Boolean(user.mustChangePassword);
 
   await createSession({
     userId: user.id,
     role: user.role,
     email: user.email,
-    schoolId: user.schoolId ?? null,
+    schoolId: schoolId ?? null,
     mustChangePassword: mustChange,
   });
   await logAudit({
     userId: user.id,
+    schoolId: schoolId ?? null,
     action: "LOGIN",
     entity: "User",
     entityId: user.id,
-    details: { schoolId: user.schoolId },
+    details: {
+      schoolId: schoolId ?? null,
+      schoolSlug: schoolId ? "kms-or-tenant" : null,
+      role: user.role,
+    },
   });
 
   if (mustChange) {

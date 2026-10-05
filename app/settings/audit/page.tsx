@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { PortalShell } from "@/components/PortalShell";
 import { homeRouteForRole } from "@/lib/permissions";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
@@ -9,12 +10,21 @@ export const dynamic = "force-dynamic";
 
 export default async function AuditLogPage() {
   const session = await requireSession();
-  if (!["ADMIN", "IT"].includes(session.role)) {
+  if (!["ADMIN", "IT", "PLATFORM_ADMIN"].includes(session.role)) {
     redirect(homeRouteForRole(session.role));
   }
 
+  const schoolId = await resolveSchoolId(session);
+  // School admins only see their school; platform admin sees everything
+  const where =
+    session.role === "PLATFORM_ADMIN" ? {} : schoolWhere(schoolId);
+
   const logs = await prisma.auditLog.findMany({
-    include: { user: { select: { email: true, role: true } } },
+    where,
+    include: {
+      user: { select: { email: true, role: true } },
+      school: { select: { slug: true, shortName: true } },
+    },
     orderBy: { createdAt: "desc" },
     take: 100,
   });
@@ -36,6 +46,7 @@ export default async function AuditLogPage() {
             <tr>
               <th>When</th>
               <th>User</th>
+              <th>School</th>
               <th>Action</th>
               <th>Entity</th>
               <th>Details</th>
@@ -50,6 +61,9 @@ export default async function AuditLogPage() {
                   {l.user?.role && (
                     <span className="block text-ink/40">{l.user.role}</span>
                   )}
+                </td>
+                <td className="font-mono text-ink/60">
+                  {l.school?.slug ?? l.schoolId ?? "—"}
                 </td>
                 <td className="font-mono">{l.action}</td>
                 <td>
@@ -67,7 +81,7 @@ export default async function AuditLogPage() {
             ))}
             {logs.length === 0 && (
               <tr>
-                <td colSpan={5} className="text-center text-ink/50 py-8">
+                <td colSpan={6} className="text-center text-ink/50 py-8">
                   No audit entries yet.
                 </td>
               </tr>
@@ -75,6 +89,10 @@ export default async function AuditLogPage() {
           </tbody>
         </table>
       </div>
+      <p className="text-xs text-ink/50 mt-3">
+        Older rows may still show <code>schoolId: null</code> in Details — that is a snapshot from
+        before tenant backfill. New actions record the real school.
+      </p>
     </PortalShell>
   );
 }
