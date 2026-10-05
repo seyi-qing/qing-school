@@ -64,10 +64,9 @@ export async function PATCH(req: Request) {
     if (!check.ok) {
       return NextResponse.json({ error: check.message, hint: passwordPolicyHint() }, { status: 400 });
     }
-    const staff = await prisma.staff.findUnique({ where: { id: body.staffId } });
+    const schoolIdReset = await resolveSchoolId(session); if (!schoolIdReset) return NextResponse.json({ error: "School context required" }, { status: 409 }); const staff = await prisma.staff.findFirst({ where: { id: body.staffId, schoolId: schoolIdReset } });
     if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
-    const schoolIdReset = await resolveSchoolId(session);
-    const g = await assertStaffInTenant(staff.id, schoolIdReset);
+    const g = { ok: true as const };
     if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status });
     const passwordHash = await hashPassword(newPassword);
     await prisma.user.update({
@@ -88,11 +87,9 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid data" }, { status: 400 });
   }
 
-  const staff = await prisma.staff.findUnique({ where: { id: parsed.data.id } });
+  const schoolIdPatch = await resolveSchoolId(session); if (!schoolIdPatch) return NextResponse.json({ error: "School context required" }, { status: 409 }); const staff = await prisma.staff.findFirst({ where: { id: parsed.data.id, schoolId: schoolIdPatch } });
   if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
-  const schoolIdPatch = await resolveSchoolId(session);
-  const guard = await assertStaffInTenant(staff.id, schoolIdPatch);
-  if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });
+
 
   const data = parsed.data;
   const updated = await prisma.$transaction(async (tx) => {
