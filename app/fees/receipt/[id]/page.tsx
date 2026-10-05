@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { notFound } from "next/navigation";
 import { formatNaira } from "@/lib/format";
+import { OfficialLetterhead, OfficialStampArea } from "@/components/OfficialLetterhead";
 import { SCHOOL } from "@/lib/school-config";
 import Link from "next/link";
 import { PrintReceiptButton } from "./PrintReceiptButton";
@@ -35,14 +36,7 @@ export default async function PaymentReceiptPage({ params }: { params: { id: str
       </div>
 
       <div className="border border-line bg-white p-6 print:border-0">
-        <div className="text-center mb-6">
-          <p className="font-serif text-xl">{SCHOOL.name}</p>
-          <p className="text-xs text-ink/60">{SCHOOL.contact.address}</p>
-          <p className="text-xs text-ink/60">
-            {SCHOOL.contact.phone} · {SCHOOL.contact.email}
-          </p>
-          <p className="text-sm font-medium mt-3 uppercase tracking-wide">Payment receipt</p>
-        </div>
+        <OfficialLetterhead documentTitle="Payment receipt" />
 
         <dl className="text-sm space-y-2">
           <div className="flex justify-between gap-4 border-b border-line py-1">
@@ -93,7 +87,9 @@ export default async function PaymentReceiptPage({ params }: { params: { id: str
           </div>
         </dl>
 
-        <p className="text-[10px] text-ink/40 mt-8 text-center">
+        <OfficialStampArea />
+
+        <p className="text-[10px] text-ink/40 mt-6 text-center">
           Computer-generated receipt · {SCHOOL.shortName} · Keep for your records
         </p>
       </div>
