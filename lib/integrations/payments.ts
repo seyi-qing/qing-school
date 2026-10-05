@@ -17,9 +17,17 @@ interface InitResult {
   reference: string;
 }
 
-export function isMockMode(provider: PaymentProvider) {
-  if (provider === "PAYSTACK") return !process.env.PAYSTACK_SECRET_KEY;
-  return !process.env.FLUTTERWAVE_SECRET_KEY;
+export function isMockMode(_provider: PaymentProvider) {
+  const mode = (process.env.PAYMENTS_MODE || "mock").toLowerCase();
+  if (mode === "mock") return true;
+  if (mode === "live") return false;
+  throw new Error("Invalid PAYMENTS_MODE. Use live or mock.");
+}
+
+export function assertPaymentConfiguration(provider: PaymentProvider) {
+  if ((process.env.PAYMENTS_MODE || "mock").toLowerCase() !== "live") return;
+  const key = provider === "PAYSTACK" ? process.env.PAYSTACK_SECRET_KEY : process.env.FLUTTERWAVE_SECRET_KEY;
+  if (!key) throw new Error(provider + " secret key is required when PAYMENTS_MODE=live.");
 }
 
 function appBaseUrl() {
