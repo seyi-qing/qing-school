@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     role: user.role,
     email: user.email,
     schoolId: schoolId ?? null,
-    mustChangePassword: mustChange,
+    mustChangePassword: mustChange,\n    sessionVersion: user.sessionVersion,
   });
   await logAudit({
     userId: user.id,
