@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
-import { ensureDefaultSchool } from "@/lib/tenant";
-import { assertUnderStudentCap } from "@/lib/tenant-scope";
+import { assertUnderStudentCap, resolveSchoolIdFromRequest } from "@/lib/tenant-scope";
 
 const ApplicationSchema = z.object({
   firstName: z.string().min(1).max(80),
@@ -19,11 +18,12 @@ const ApplicationSchema = z.object({
   desiredClass: z.string().max(80).optional(),
 });
 
-async function nextAdmissionNumber() {
+async function nextAdmissionNumber(schoolId: string, shortName: string) {
   const year = new Date().getFullYear();
-  const prefix = `KMS/${year}/`;
+  const tag = (shortName || "SCH").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) || "SCH";
+  const prefix = `${tag}/${year}/`;
   const last = await prisma.student.findFirst({
-    where: { admissionNumber: { startsWith: prefix } },
+    where: { schoolId, admissionNumber: { startsWith: prefix } },
     orderBy: { admissionNumber: "desc" },
   });
   let seq = 1;
@@ -45,12 +45,16 @@ export async function POST(req: Request) {
   }
 
   const d = parsed.data;
-  const school = await ensureDefaultSchool();
+  const schoolId = await resolveSchoolIdFromRequest(req);
+  const school = await prisma.school.findUnique({ where: { id: schoolId } });
+  if (!school || !school.isActive) {
+    return NextResponse.json({ error: "School not available for admissions." }, { status: 403 });
+  }
   const cap = await assertUnderStudentCap(school.id);
   if (!cap.ok) {
     return NextResponse.json({ error: cap.error }, { status: 403 });
   }
-  const admissionNumber = await nextAdmissionNumber();
+  const admissionNumber = await nextAdmissionNumber(school.id, school.shortName);
 
   const medicalNotes = [
     `Parent/Guardian: ${d.parentName}`,

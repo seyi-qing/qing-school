@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { gradeFor } from "@/lib/grading";
 import { logAudit } from "@/lib/audit";
+import { resolveSchoolId } from "@/lib/tenant-scope";
 
 /** Nigerian continuous assessment defaults: CA1 20 + CA2 20 + Exam 60 = 100 */
 const CA1_MAX = 20;
@@ -60,6 +61,14 @@ export async function POST(req: Request) {
     );
   }
   const { armSubjectId, termId, scores } = parsed.data;
+  const schoolId = await resolveSchoolId(session);
+  if (schoolId && scores.length) {
+    const ids = scores.map((s) => s.studentId);
+    const allowed = await prisma.student.count({ where: { id: { in: ids }, schoolId } });
+    if (allowed !== ids.length) {
+      return NextResponse.json({ error: "One or more students are outside your school." }, { status: 403 });
+    }
+  }
 
   for (const s of scores) {
     const total = s.ca1 + s.ca2 + s.exam;
