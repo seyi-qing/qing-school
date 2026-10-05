@@ -50,12 +50,19 @@ export default function ResultCheckerPage() {
         </a>
       </nav>
       <div className="max-w-md w-full mx-auto flex-1 flex flex-col justify-center">
-        <div className="w-12 h-12 border-2 border-gold flex items-center justify-center font-serif text-gold text-sm mb-6 mx-auto font-medium">
-          {SCHOOL.shortName}
+        <div className="flex justify-center mb-5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.svg"
+            alt={SCHOOL.name}
+            className="h-16 w-16 object-contain"
+            width={64}
+            height={64}
+          />
         </div>
-        <h1 className="font-serif text-2xl text-center mb-1">Result Checker</h1>
-        <p className="text-sm text-ink/60 text-center mb-1">{SCHOOL.name}</p>
-        <p className="text-sm text-ink/50 text-center mb-6">
+        <h1 className="font-serif text-2xl text-center mb-1 text-navy">Result Checker</h1>
+        <p className="text-sm text-navy/80 text-center font-medium mb-1">{SCHOOL.name}</p>
+        <p className="text-xs text-ink/50 text-center mb-6">
           Enter admission number and scratch-card PIN to view terminal results.
         </p>
 
@@ -99,31 +106,33 @@ export default function ResultCheckerPage() {
             </div>
             <h2 className="font-serif text-lg mb-1">{result.student.name}</h2>
             <p className="text-xs font-mono text-ink/50 mb-3">{result.student.admissionNumber}</p>
-            <table className="ledger">
-              <thead>
-                <tr>
-                  <th>Subject</th>
-                  <th>Total</th>
-                  <th>Grade</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.scores.map((s, i) => (
-                  <tr key={i}>
-                    <td>{s.subject}</td>
-                    <td>{s.total}</td>
-                    <td>{s.grade ?? "-"}</td>
-                  </tr>
-                ))}
-                {result.scores.length === 0 && (
+            <div className="overflow-x-auto -mx-1">
+              <table className="ledger min-w-[280px] w-full">
+                <thead>
                   <tr>
-                    <td colSpan={3} className="text-center text-ink/50 py-4">
-                      No scores published for this term yet.
-                    </td>
+                    <th>Subject</th>
+                    <th>Total</th>
+                    <th>Grade</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {result.scores.map((s, i) => (
+                    <tr key={i}>
+                      <td>{s.subject}</td>
+                      <td>{s.total}</td>
+                      <td>{s.grade ?? "-"}</td>
+                    </tr>
+                  ))}
+                  {result.scores.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="text-center text-ink/50 py-4">
+                        No scores published for this term yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
             <p className="text-[10px] text-ink/40 mt-4 text-center">
               {SCHOOL.shortName} · Official result checker
             </p>
