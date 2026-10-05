@@ -49,6 +49,9 @@ model School {
   cmsPages        CmsPage[]
   academicYears   Session[]
   auditLogs       AuditLog[]
+  libraryBooks    LibraryBook[]
+  hostelRooms     HostelRoom[]
+  transportRoutes TransportRoute[]
 
   @@index([isActive])
 }
@@ -243,6 +246,8 @@ model LeaveRequest {
 
 model LibraryBook {
   id        String     @id @default(cuid())
+  schoolId  String?
+  school    School?    @relation(fields: [schoolId], references: [id])
   title     String
   author    String?
   isbn      String?
@@ -250,6 +255,7 @@ model LibraryBook {
   available Int        @default(1)
   loans     BookLoan[]
   createdAt DateTime   @default(now())
+  @@index([schoolId])
 }
 
 model BookLoan {
@@ -265,12 +271,15 @@ model BookLoan {
 
 model HostelRoom {
   id          String             @id @default(cuid())
+  schoolId    String?
+  school      School?            @relation(fields: [schoolId], references: [id])
   name        String
   block       String?
   capacity    Int                @default(4)
   gender      String?
   allocations HostelAllocation[]
   createdAt   DateTime           @default(now())
+  @@index([schoolId])
 }
 
 model HostelAllocation {
@@ -287,6 +296,8 @@ model HostelAllocation {
 
 model TransportRoute {
   id          String                @id @default(cuid())
+  schoolId    String?
+  school      School?               @relation(fields: [schoolId], references: [id])
   name        String
   vehicle     String?
   driverName  String?
@@ -294,6 +305,7 @@ model TransportRoute {
   feeAmount   Float                 @default(0)
   enrollments TransportEnrollment[]
   createdAt   DateTime              @default(now())
+  @@index([schoolId])
 }
 
 model TransportEnrollment {
