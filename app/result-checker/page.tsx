@@ -40,8 +40,16 @@ export default function ResultCheckerPage() {
   }
 
   return (
-    <main className="min-h-screen bg-paper flex items-center justify-center px-4 py-16">
-      <div className="max-w-md w-full">
+    <main className="min-h-screen bg-paper flex flex-col px-4 py-6 sm:py-10">
+      <nav className="w-full max-w-md mx-auto flex items-center justify-between text-sm mb-8">
+        <a href="/" className="text-navy underline hover:text-gold">
+          ← Home
+        </a>
+        <a href="/login" className="text-navy underline hover:text-gold">
+          Portal login →
+        </a>
+      </nav>
+      <div className="max-w-md w-full mx-auto flex-1 flex flex-col justify-center">
         <div className="w-12 h-12 border-2 border-gold flex items-center justify-center font-serif text-gold text-sm mb-6 mx-auto font-medium">
           {SCHOOL.shortName}
         </div>
@@ -50,6 +58,7 @@ export default function ResultCheckerPage() {
         <p className="text-sm text-ink/50 text-center mb-6">
           Enter admission number and scratch-card PIN to view terminal results.
         </p>
+
         <form onSubmit={check} className="ledger-block space-y-3">
           <input
             value={admissionNumber}
