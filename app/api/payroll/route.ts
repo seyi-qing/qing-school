@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 
 const RunPayrollSchema = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/),
@@ -21,8 +22,9 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   const { month, deductionPercent } = parsed.data;
 
+  const schoolId = await resolveSchoolId(session);
   const staffList = await prisma.staff.findMany({
-    where: { isActive: true, monthlySalary: { not: null } },
+    where: { isActive: true, monthlySalary: { not: null }, ...schoolWhere(schoolId) },
   });
 
   let generated = 0;

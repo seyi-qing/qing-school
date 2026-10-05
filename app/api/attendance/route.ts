@@ -7,6 +7,7 @@ import { logAudit } from "@/lib/audit";
 import { sendSms } from "@/lib/integrations/messaging";
 import { extractPhone } from "@/lib/phone";
 import { SCHOOL } from "@/lib/school-config";
+import { resolveSchoolId } from "@/lib/tenant-scope";
 
 const MarkSchema = z.object({
   armId: z.string(),
@@ -39,6 +40,16 @@ export async function POST(req: Request) {
   }
 
   const { date, marks, notifyParents } = parsed.data;
+  const schoolId = await resolveSchoolId(session);
+  if (schoolId && marks.length) {
+    const ids = marks.map((m) => m.studentId);
+    const allowed = await prisma.student.count({
+      where: { id: { in: ids }, schoolId },
+    });
+    if (allowed !== ids.length) {
+      return NextResponse.json({ error: "One or more students are outside your school." }, { status: 403 });
+    }
+  }
   const term = await getCurrentTerm();
   const day = new Date(date);
 
@@ -78,17 +89,16 @@ export async function POST(req: Request) {
         weekday: "short",
         day: "numeric",
         month: "short",
-        year: "numeric",
       });
 
-      for (const s of students) {
-        const phone = extractPhone(s.guardianPhone, s.medicalNotes);
+      for (const st of students) {
+        const phone = extractPhone(st.guardianPhone) || extractPhone(st.medicalNotes || "");
         if (!phone) {
           smsSkipped++;
           continue;
         }
-        const text = `${SCHOOL.shortName}: ${s.firstName} ${s.lastName} was marked ABSENT on ${dateLabel}. Contact the school if this is unexpected.`;
-        const result = await sendSms({ to: phone, body: text });
+        const msg = `${SCHOOL.shortName}: ${st.firstName} ${st.lastName} was marked ABSENT on ${dateLabel}. Contact the school if this is unexpected.`;
+        const result = await sendSms({ to: phone, message: msg });
         if (result.ok) smsSent++;
         else smsSkipped++;
       }
@@ -97,21 +107,10 @@ export async function POST(req: Request) {
 
   await logAudit({
     userId: session.userId,
-    action: "TAKE_ATTENDANCE",
+    action: "MARK_ATTENDANCE",
     entity: "Attendance",
-    details: {
-      date,
-      count: marks.length,
-      absent: marks.filter((m) => m.status === "ABSENT").length,
-      smsSent,
-      smsSkipped,
-    },
+    details: { date, count: marks.length, smsSent, smsSkipped },
   });
 
-  return NextResponse.json({
-    ok: true,
-    smsSent,
-    smsSkipped,
-    absent: marks.filter((m) => m.status === "ABSENT").length,
-  });
+  return NextResponse.json({ ok: true, marked: marks.length, smsSent, smsSkipped });
 }
