@@ -36,3 +36,47 @@ export async function assertUnderStudentCap(schoolId: string): Promise<{ ok: tru
   }
   return { ok: true };
 }
+
+/** Hard IDOR guard: student must belong to the caller's school (PLATFORM_ADMIN skips). */
+export async function assertStudentInTenant(
+  studentId: string,
+  schoolId: string | null
+): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const student = await (await import("@/lib/db")).prisma.student.findUnique({
+    where: { id: studentId },
+    select: { id: true, schoolId: true },
+  });
+  if (!student) return { ok: false, status: 404, error: "Student not found" };
+  if (schoolId && student.schoolId && student.schoolId !== schoolId) {
+    return { ok: false, status: 404, error: "Student not found" };
+  }
+  return { ok: true };
+}
+
+/** Staff must belong to caller's school. */
+export async function assertStaffInTenant(
+  staffId: string,
+  schoolId: string | null
+): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const staff = await (await import("@/lib/db")).prisma.staff.findUnique({
+    where: { id: staffId },
+    select: { id: true, schoolId: true },
+  });
+  if (!staff) return { ok: false, status: 404, error: "Staff not found" };
+  if (schoolId && staff.schoolId && staff.schoolId !== schoolId) {
+    return { ok: false, status: 404, error: "Staff not found" };
+  }
+  return { ok: true };
+}
+
+/** Resolve school from middleware subdomain header (public forms). */
+export async function resolveSchoolIdFromRequest(req: Request): Promise<string> {
+  const slug = req.headers.get("x-school-slug");
+  const { prisma } = await import("@/lib/db");
+  if (slug) {
+    const bySlug = await prisma.school.findUnique({ where: { slug } });
+    if (bySlug) return bySlug.id;
+  }
+  const school = await ensureDefaultSchool();
+  return school.id;
+}
