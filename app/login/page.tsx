@@ -2,11 +2,15 @@
 
 import { useState, FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useToast } from "@/components/ui/Toast";
+import { SCHOOL } from "@/lib/school-config";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextParam = searchParams.get("next");
+  const { toast } = useToast();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,15 +29,20 @@ function LoginForm() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error || "Login failed");
+        const msg = data.error || "Login failed";
+        setError(msg);
+        toast(msg, "error");
         setLoading(false);
         return;
       }
+      toast("Signed in.", "success");
       const dest = data.redirectTo || nextParam || "/dashboard";
       router.push(dest);
       router.refresh();
     } catch {
-      setError("Network error. Try again.");
+      const msg = "Network error. Try again.";
+      setError(msg);
+      toast(msg, "error");
       setLoading(false);
     }
   }
@@ -45,11 +54,13 @@ function LoginForm() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo.svg"
-            alt="Kayvlop Magnificent School"
+            alt={SCHOOL.name}
             className="w-20 h-20 object-contain mx-auto mb-3"
           />
-          <h1 className="font-serif text-2xl sm:text-3xl text-ink">Kayvlop Magnificent School</h1>
-          <p className="text-sm text-ink/60 mt-1">Portal sign in · Education with Godliness</p>
+          <h1 className="font-serif text-2xl sm:text-3xl text-ink">{SCHOOL.name}</h1>
+          <p className="text-sm text-ink/60 mt-1">
+            Portal sign in · {SCHOOL.motto}
+          </p>
         </div>
 
         <form onSubmit={onSubmit} className="ledger-block space-y-4">
@@ -88,16 +99,16 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-navy text-paper py-2.5 text-sm hover:bg-navy-light disabled:opacity-60"
+            className="w-full bg-navy text-paper py-2.5 text-sm font-medium hover:bg-navy-light disabled:opacity-60"
           >
             {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
 
-        <p className="text-center text-xs text-ink/40 mt-6">
-          <a href="/" className="hover:text-gold">
-            &larr; Back to public site
-          </a>
+        <p className="text-center text-xs text-ink/50 mt-6">
+          <Link href="/" className="underline hover:text-navy">
+            ← Back to {SCHOOL.shortName} home
+          </Link>
         </p>
       </div>
     </main>

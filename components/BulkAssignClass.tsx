@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/Toast";
 
 type Arm = { id: string; label: string };
 type Student = { id: string; name: string; admissionNumber: string; unassigned: boolean };
 
 export function BulkAssignClass({ arms, students }: { arms: Arm[]; students: Student[] }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [armId, setArmId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -29,6 +31,7 @@ export function BulkAssignClass({ arms, students }: { arms: Arm[]; students: Stu
   async function assign() {
     if (selected.size === 0) {
       setMsg("Select at least one student.");
+      toast("Select at least one student.", "error");
       return;
     }
     setBusy(true);
@@ -44,19 +47,31 @@ export function BulkAssignClass({ arms, students }: { arms: Arm[]; students: Stu
     const data = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
-      setMsg(data.error || "Assign failed");
+      const err = data.error || "Assign failed";
+      setMsg(err);
+      toast(err, "error");
       return;
     }
-    setMsg(`Updated ${data.updated} student(s).`);
+    const ok = `Updated ${data.updated} student(s).`;
+    setMsg(ok);
+    toast(ok, "success");
     setSelected(new Set());
     router.refresh();
   }
 
+  const unassignedCount = students.filter((s) => s.unassigned).length;
+  if (unassignedCount === 0 && students.length === 0) return null;
+
   return (
     <div className="ledger-block space-y-3 mb-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-serif text-base">Bulk assign class</h2>
-        <button type="button" onClick={selectUnassigned} className="text-xs underline text-navy">
+        <p className="text-sm font-medium">
+          Bulk assign class
+          {unassignedCount > 0 && (
+            <span className="text-ink/50 font-normal"> · {unassignedCount} unassigned</span>
+          )}
+        </p>
+        <button type="button" onClick={selectUnassigned} className="text-xs text-navy underline">
           Select all unassigned
         </button>
       </div>
