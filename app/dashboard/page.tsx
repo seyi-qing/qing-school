@@ -32,8 +32,8 @@ export default async function DashboardPage() {
       }),
     ]);
 
-  const collected = invoices.reduce((sum, i) => sum + i.amountPaid, 0);
-  const outstanding = invoices.reduce((sum, i) => sum + (i.totalAmount - i.amountPaid), 0);
+  const collected = invoices.reduce((sum, i) => sum + Number(i.amountPaid), 0);
+  const outstanding = invoices.reduce((sum, i) => sum + (Number(i.totalAmount) - Number(i.amountPaid)), 0);
   const presentToday = todayAttendance.filter((a) => a.status === "PRESENT").length;
   const attendancePct =
     todayAttendance.length > 0 ? Math.round((presentToday / todayAttendance.length) * 100) : null;
