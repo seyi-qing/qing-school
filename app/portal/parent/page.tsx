@@ -6,12 +6,17 @@ import { formatNaira } from "@/lib/format";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { getBrandingForSchoolId } from "@/lib/branding";
+import { resolveSchoolId } from "@/lib/tenant-scope";
 
 export const dynamic = "force-dynamic";
 
 export default async function ParentPortalPage() {
   const session = await requireSession();
   if (session.role !== "PARENT") redirect("/dashboard");
+
+  const schoolId = await resolveSchoolId(session);
+  const brand = await getBrandingForSchoolId(schoolId);
 
   const links = await prisma.parentLink.findMany({
     where: { parentId: session.userId },
@@ -30,7 +35,7 @@ export default async function ParentPortalPage() {
     <PortalShell
       role={session.role}
       title="Family dashboard"
-      subtitle="Balances, attendance and notices for your children"
+      subtitle={`${brand.shortName} · balances, attendance and notices for your children`}
     >
       {links.length === 0 ? (
         <EmptyState
