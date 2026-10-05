@@ -8,11 +8,13 @@ import { StudentLifecycleActions } from "@/components/StudentLifecycleActions";
 import { can } from "@/lib/permissions";
 import { formatNaira, formatDate } from "@/lib/format";
 import { notFound, redirect } from "next/navigation";
+import { resolveSchoolId } from "@/lib/tenant-scope";
 
 export const dynamic = "force-dynamic";
 
 export default async function StudentDetailPage({ params }: { params: { id: string } }) {
   const session = await requireSession();
+  const schoolId = await resolveSchoolId(session);
 
   if (session.role === "STUDENT") {
     const owns = await prisma.student.findFirst({ where: { id: params.id, userId: session.userId } });
@@ -48,12 +50,14 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
       },
     }),
     prisma.arm.findMany({
+      where: schoolId ? { schoolClass: { schoolId } } : undefined,
       include: { schoolClass: true },
       orderBy: [{ schoolClass: { order: "asc" } }, { name: "asc" }],
     }),
   ]);
 
   if (!student) notFound();
+  if (schoolId && student.schoolId && student.schoolId !== schoolId) notFound();
 
   const canManage = can(session.role, "MANAGE_STUDENTS");
   const hostel = student.hostelAllocs[0];
