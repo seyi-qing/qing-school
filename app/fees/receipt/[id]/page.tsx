@@ -3,7 +3,7 @@ import { requireSession } from "@/lib/require-session";
 import { notFound } from "next/navigation";
 import { formatNaira } from "@/lib/format";
 import { OfficialLetterhead, OfficialStampArea } from "@/components/OfficialLetterhead";
-import { SCHOOL } from "@/lib/school-config";
+import { getBrandingForSchoolId } from "@/lib/branding";
 import Link from "next/link";
 import { PrintReceiptButton } from "./PrintReceiptButton";
 
@@ -21,6 +21,8 @@ export default async function PaymentReceiptPage({ params }: { params: { id: str
   });
   if (!payment) notFound();
 
+  const brand = await getBrandingForSchoolId(payment.student.schoolId);
+
   const classLabel = payment.student.arm
     ? `${payment.student.arm.schoolClass.name} ${payment.student.arm.name}`
     : "-";
@@ -36,7 +38,7 @@ export default async function PaymentReceiptPage({ params }: { params: { id: str
       </div>
 
       <div className="border border-line bg-white p-6 print:border-0">
-        <OfficialLetterhead documentTitle="Payment receipt" />
+        <OfficialLetterhead documentTitle="Payment receipt" branding={brand} />
 
         <dl className="text-sm space-y-2">
           <div className="flex justify-between gap-4 border-b border-line py-1">
@@ -90,7 +92,7 @@ export default async function PaymentReceiptPage({ params }: { params: { id: str
         <OfficialStampArea />
 
         <p className="text-[10px] text-ink/40 mt-6 text-center">
-          Computer-generated receipt · {SCHOOL.shortName} · Keep for your records
+          Computer-generated receipt · {brand.shortName} · Keep for your records
         </p>
       </div>
     </div>
