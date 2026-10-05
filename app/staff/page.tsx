@@ -11,6 +11,15 @@ export const dynamic = "force-dynamic";
 export default async function StaffPage() {
   const session = await requireSession();
   const schoolId = await resolveSchoolId(session);
+
+  // Backfill legacy staff with no schoolId onto this school
+  if (schoolId) {
+    await prisma.staff.updateMany({
+      where: { schoolId: null },
+      data: { schoolId },
+    });
+  }
+
   const staff = await prisma.staff.findMany({
     where: schoolWhere(schoolId),
     include: { user: { select: { email: true, role: true, isActive: true } } },

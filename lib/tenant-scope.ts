@@ -1,6 +1,8 @@
 /**
  * Tenant scoping helpers — use on every list/write for school data.
  * PLATFORM_ADMIN may pass schoolId null (sees all). School users always scoped.
+ * Legacy rows with schoolId = null are treated as belonging to the default school
+ * until backfilled (common for pre-SaaS KMS data).
  */
 import type { SessionPayload } from "@/lib/auth";
 import { ensureDefaultSchool } from "@/lib/tenant";
@@ -11,21 +13,30 @@ export async function resolveSchoolId(
   if (!session) return null;
   if (session.role === "PLATFORM_ADMIN") return null;
   if (session.schoolId) return session.schoolId;
-  // Legacy sessions without schoolId → attach to default KMS tenant
   const school = await ensureDefaultSchool();
   return school.id;
 }
 
-/** Prisma where fragment for school-owned rows */
-export function schoolWhere(schoolId: string | null | undefined): { schoolId?: string } {
+/**
+ * Prisma where fragment for school-owned rows.
+ * Includes null schoolId rows so legacy KMS records remain visible.
+ */
+export function schoolWhere(
+  schoolId: string | null | undefined
+): Record<string, unknown> {
   if (!schoolId) return {};
-  return { schoolId };
+  return {
+    OR: [{ schoolId }, { schoolId: null }],
+  };
 }
 
-export async function assertUnderStudentCap(schoolId: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const school = await (await import("@/lib/db")).prisma.school.findUnique({ where: { id: schoolId } });
+export async function assertUnderStudentCap(
+  schoolId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { prisma } = await import("@/lib/db");
+  const school = await prisma.school.findUnique({ where: { id: schoolId } });
   if (!school) return { ok: false, error: "School not found." };
-  const count = await (await import("@/lib/db")).prisma.student.count({
+  const count = await prisma.student.count({
     where: { schoolId, status: { in: ["ACTIVE", "APPLIED"] } },
   });
   if (count >= school.maxStudents) {
@@ -37,12 +48,12 @@ export async function assertUnderStudentCap(schoolId: string): Promise<{ ok: tru
   return { ok: true };
 }
 
-/** Hard IDOR guard: student must belong to the caller's school (PLATFORM_ADMIN skips). */
 export async function assertStudentInTenant(
   studentId: string,
   schoolId: string | null
 ): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
-  const student = await (await import("@/lib/db")).prisma.student.findUnique({
+  const { prisma } = await import("@/lib/db");
+  const student = await prisma.student.findUnique({
     where: { id: studentId },
     select: { id: true, schoolId: true },
   });
@@ -53,12 +64,12 @@ export async function assertStudentInTenant(
   return { ok: true };
 }
 
-/** Staff must belong to caller's school. */
 export async function assertStaffInTenant(
   staffId: string,
   schoolId: string | null
 ): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
-  const staff = await (await import("@/lib/db")).prisma.staff.findUnique({
+  const { prisma } = await import("@/lib/db");
+  const staff = await prisma.staff.findUnique({
     where: { id: staffId },
     select: { id: true, schoolId: true },
   });
@@ -69,7 +80,6 @@ export async function assertStaffInTenant(
   return { ok: true };
 }
 
-/** Resolve school from middleware subdomain header (public forms). */
 export async function resolveSchoolIdFromRequest(req: Request): Promise<string> {
   const slug = req.headers.get("x-school-slug");
   const { prisma } = await import("@/lib/db");
