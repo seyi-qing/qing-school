@@ -58,8 +58,14 @@ export function schoolToBranding(s: TenantSchool) {
 
 export async function ensureDefaultSchool(): Promise<TenantSchool> {
   const existing = await prisma.school.findUnique({ where: { slug: "kms" } });
-  if (existing) return existing;
-  return prisma.school.create({
+  if (existing) {
+    const leftover = await prisma.student.count({ where: { schoolId: null } });
+    if (leftover > 0) {
+      await backfillSchoolIds(existing.id);
+    }
+    return existing;
+  }
+  const created = await prisma.school.create({
     data: {
       slug: "kms",
       name: FALLBACK.name,
@@ -79,6 +85,8 @@ export async function ensureDefaultSchool(): Promise<TenantSchool> {
       maxStudents: 2000,
     },
   });
+  await backfillSchoolIds(created.id);
+  return created;
 }
 
 export async function getSchoolBySlug(slug: string) {
@@ -113,9 +121,17 @@ export async function resolveSchool(opts?: {
   return ensureDefaultSchool();
 }
 
-export async function backfillSchoolIds(schoolId: string) {
-  await Promise.all([
-    prisma.user.updateMany({ where: { schoolId: null, role: { not: "PLATFORM_ADMIN" } }, data: { schoolId } }),
+/**
+ * Assign every legacy null-schoolId row to the KMS (or given) school.
+ * Safe to run many times — only touches schoolId: null.
+ * After this, schoolWhere is strict: other tenants never see KMS data.
+ */
+export async function backfillSchoolIds(schoolId: string): Promise<Record<string, number>> {
+  const jobs = await Promise.all([
+    prisma.user.updateMany({
+      where: { schoolId: null, role: { not: "PLATFORM_ADMIN" } },
+      data: { schoolId },
+    }),
     prisma.student.updateMany({ where: { schoolId: null }, data: { schoolId } }),
     prisma.staff.updateMany({ where: { schoolId: null }, data: { schoolId } }),
     prisma.schoolClass.updateMany({ where: { schoolId: null }, data: { schoolId } }),
@@ -123,5 +139,30 @@ export async function backfillSchoolIds(schoolId: string) {
     prisma.cmsPage.updateMany({ where: { schoolId: null }, data: { schoolId } }),
     prisma.session.updateMany({ where: { schoolId: null }, data: { schoolId } }),
     prisma.auditLog.updateMany({ where: { schoolId: null }, data: { schoolId } }),
+    prisma.libraryBook.updateMany({ where: { schoolId: null }, data: { schoolId } }),
+    prisma.hostelRoom.updateMany({ where: { schoolId: null }, data: { schoolId } }),
+    prisma.transportRoute.updateMany({ where: { schoolId: null }, data: { schoolId } }),
+    prisma.cbtExam.updateMany({ where: { schoolId: null }, data: { schoolId } }),
+    prisma.expenseRecord.updateMany({ where: { schoolId: null }, data: { schoolId } }),
   ]);
+  const keys = [
+    "user",
+    "student",
+    "staff",
+    "schoolClass",
+    "notice",
+    "cmsPage",
+    "session",
+    "auditLog",
+    "libraryBook",
+    "hostelRoom",
+    "transportRoute",
+    "cbtExam",
+    "expenseRecord",
+  ] as const;
+  const counts: Record<string, number> = {};
+  keys.forEach((k, i) => {
+    counts[k] = jobs[i].count;
+  });
+  return counts;
 }
