@@ -43,7 +43,7 @@ async function applyManualPayment(
 
   const newPaid = Number(invoice.amountPaid) + amount;
   const status =
-    newPaid >= invoice.totalAmount ? "PAID" : newPaid > 0 ? "PARTIAL" : "UNPAID";
+    newPaid >= Number(invoice.totalAmount) ? "PAID" : newPaid > 0 ? "PARTIAL" : "UNPAID";
 
   await prisma.invoice.update({
     where: { id: invoiceId },
