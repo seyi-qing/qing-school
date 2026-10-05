@@ -178,7 +178,17 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-function sectionFor(item: NavItem): string {\n  if (item.section) return item.section;\n  if (["/students","/staff","/leave"].some(p => item.href === p)) return "People";\n  if (["/classes","/timetable","/attendance","/exams","/cbt","/reports"].some(p => item.href === p)) return "Academics";\n  if (["/fees","/fees/structure","/expenses","/payroll"].some(p => item.href === p)) return "Finance";\n  if (["/library","/hostel","/transport","/notices","/cms","/modules"].some(p => item.href === p)) return "Operations";\n  if (item.href.startsWith("/settings") || item.href === "/onboarding" || item.href === "/platform") return "Administration";\n  return "Home";\n}\n\nfunction rolePortalLabel(role: Role): string {
+function sectionFor(item: NavItem): string {
+  if (item.section) return item.section;
+  if (["/students","/staff","/leave"].some(p => item.href === p)) return "People";
+  if (["/classes","/timetable","/attendance","/exams","/cbt","/reports"].some(p => item.href === p)) return "Academics";
+  if (["/fees","/fees/structure","/expenses","/payroll"].some(p => item.href === p)) return "Finance";
+  if (["/library","/hostel","/transport","/notices","/cms","/modules"].some(p => item.href === p)) return "Operations";
+  if (item.href.startsWith("/settings") || item.href === "/onboarding" || item.href === "/platform") return "Administration";
+  return "Home";
+}
+
+function rolePortalLabel(role: Role): string {
   switch (role) {
     case "PLATFORM_ADMIN":
       return "Platform admin portal";
@@ -206,7 +216,8 @@ function sectionFor(item: NavItem): string {\n  if (item.section) return item.se
 export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const visible = NAV_ITEMS.filter((item) => item.roles.includes(role));\n  const sections = [...new Set(visible.map(sectionFor))];
+  const visible = NAV_ITEMS.filter((item) => item.roles.includes(role));
+  const sections = [...new Set(visible.map(sectionFor))];
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
