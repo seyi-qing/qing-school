@@ -3,7 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { logAudit } from "@/lib/audit";\nimport { resolveSchoolId } from "@/lib/tenant-scope";
+import { logAudit } from "@/lib/audit";
+import { resolveSchoolId } from "@/lib/tenant-scope";
 
 const CreateSchema = z.object({
   studentId: z.string(),
@@ -54,7 +55,11 @@ export async function POST(req: Request) {
     );
   }
 
-  const schoolId = await resolveSchoolId(session);\n  if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 409 });\n  const student = await prisma.student.findFirst({ where: { id: parsed.data.studentId, schoolId } });\n  if (!student) return NextResponse.json({ error: "Student not found in your school" }, { status: 403 });\n  const doc = await prisma.document.create({ data: { ...parsed.data, schoolId } });
+  const schoolId = await resolveSchoolId(session);
+  if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 409 });
+  const student = await prisma.student.findFirst({ where: { id: parsed.data.studentId, schoolId } });
+  if (!student) return NextResponse.json({ error: "Student not found in your school" }, { status: 403 });
+  const doc = await prisma.document.create({ data: { ...parsed.data, schoolId } });
   await logAudit({
     userId: session.userId,
     action: "ADD_STUDENT_DOCUMENT",
@@ -71,6 +76,10 @@ export async function DELETE(req: Request) {
   }
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
-  const schoolId = await resolveSchoolId(session);\n  if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 409 });\n  const document = await prisma.document.findFirst({ where: { id, schoolId } });\n  if (!document) return NextResponse.json({ error: "Document not found" }, { status: 404 });\n  await prisma.document.delete({ where: { id: document.id } });
+  const schoolId = await resolveSchoolId(session);
+  if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 409 });
+  const document = await prisma.document.findFirst({ where: { id, schoolId } });
+  if (!document) return NextResponse.json({ error: "Document not found" }, { status: 404 });
+  await prisma.document.delete({ where: { id: document.id } });
   return NextResponse.json({ ok: true });
 }
