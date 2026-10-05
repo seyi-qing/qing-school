@@ -30,22 +30,27 @@ const PORTAL_RULES: Array<{ prefix: string; roles: string[] }> = [
   { prefix: "/settings", roles: ["ADMIN", "IT", "PRINCIPAL"] },
 ];
 
-async function getRoleFromCookie(req: NextRequest): Promise<string | null> {
+async function getSessionFromCookie(req: NextRequest): Promise<{
+  role: string | null;
+  mustChangePassword: boolean;
+}> {
   const token = req.cookies.get("kms_session")?.value;
-  if (!token) return null;
+  if (!token) return { role: null, mustChangePassword: false };
   try {
     const secret = new TextEncoder().encode(process.env.SESSION_SECRET || "");
     const { payload } = await jwtVerify(token, secret);
-    return (payload.role as string) ?? null;
+    return {
+      role: (payload.role as string) ?? null,
+      mustChangePassword: Boolean(payload.mustChangePassword),
+    };
   } catch {
-    return null;
+    return { role: null, mustChangePassword: false };
   }
 }
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Subdomain tenant hint: demo.example.com → slug "demo"
   const host = req.headers.get("host") || "";
   const hostNoPort = host.split(":")[0];
   const hostParts = hostNoPort.split(".");
@@ -63,12 +68,21 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
-  const role = await getRoleFromCookie(req);
+  const { role, mustChangePassword } = await getSessionFromCookie(req);
 
   if (!role) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (
+    mustChangePassword &&
+    !pathname.startsWith("/account/password") &&
+    !pathname.startsWith("/api/auth/change-password") &&
+    !pathname.startsWith("/api/auth/logout")
+  ) {
+    return NextResponse.redirect(new URL("/account/password", req.url));
   }
 
   for (const rule of PORTAL_RULES) {

@@ -1,9 +1,19 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import { passwordPolicyHint } from "@/lib/password-policy";
+import { useToast } from "@/components/ui/Toast";
 
-export function ChangePasswordForm() {
+export function ChangePasswordForm({
+  forceMode = false,
+  afterSuccessPath,
+}: {
+  forceMode?: boolean;
+  afterSuccessPath?: string;
+}) {
+  const router = useRouter();
+  const { toast } = useToast();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [ok, setOk] = useState(false);
@@ -25,19 +35,27 @@ export function ChangePasswordForm() {
     const data = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
-      setMsg(data.error || "Failed");
+      const err = data.error || "Failed";
+      setMsg(err);
+      toast(err, "error");
       return;
     }
     setOk(true);
-    setMsg("Password changed. Use the new password next login.");
+    setMsg("Password changed.");
+    toast("Password changed.", "success");
     (e.target as HTMLFormElement).reset();
+    if (forceMode || afterSuccessPath) {
+      const dest = data.redirectTo || afterSuccessPath || "/dashboard";
+      router.push(dest);
+      router.refresh();
+    }
   }
 
   return (
     <form onSubmit={onSubmit} className="space-y-3 text-sm max-w-md">
       <p className="text-xs text-ink/60">{passwordPolicyHint()}</p>
       <label className="block">
-        Current password
+        {forceMode ? "Temporary / current password" : "Current password"}
         <input
           name="currentPassword"
           type="password"
@@ -61,7 +79,7 @@ export function ChangePasswordForm() {
         disabled={busy}
         className="bg-navy text-paper px-4 py-2 disabled:opacity-50"
       >
-        {busy ? "Saving..." : "Change password"}
+        {busy ? "Saving..." : forceMode ? "Save and continue" : "Change password"}
       </button>
       {msg && <p className={ok ? "text-sage" : "text-brick"}>{msg}</p>}
     </form>

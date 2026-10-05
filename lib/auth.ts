@@ -26,6 +26,7 @@ export interface SessionPayload {
   role: Role;
   email: string;
   schoolId?: string | null;
+  mustChangePassword?: boolean;
   [key: string]: unknown;
 }
 
