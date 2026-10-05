@@ -19,7 +19,7 @@ interface InitResult {
 
 export function isMockMode(_provider: PaymentProvider) {
   const mode = (process.env.PAYMENTS_MODE || "mock").toLowerCase();
-  if (mode === "mock") return true;
+  if (mode === "mock") {\n    if (process.env.NODE_ENV === "production" && process.env.ALLOW_MOCK_PAYMENTS !== "true") {\n      throw new Error("Mock payments are disabled in production. Set ALLOW_MOCK_PAYMENTS=true only for controlled staging/demo operation.");\n    }\n    return true;\n  }
   if (mode === "live") return false;
   throw new Error("Invalid PAYMENTS_MODE. Use live or mock.");
 }
@@ -48,7 +48,7 @@ export async function initializePayment(params: {
   metadata: Record<string, unknown>;
   reference?: string;
 }): Promise<InitResult> {
-  const reference =
+  assertPaymentConfiguration(params.provider);\n\n  const reference =
     params.reference ||
     `${SCHOOL.paymentRefPrefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
