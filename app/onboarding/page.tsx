@@ -1,32 +1,34 @@
 "use client";
 
-import { useState, FormEvent } from "react";
 import Link from "next/link";
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function OnboardingPage() {
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [done, setDone] = useState<{ slug: string } | null>(null);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
     setError("");
     const fd = new FormData(e.currentTarget);
+    const body = {
+      schoolName: fd.get("schoolName"),
+      shortName: fd.get("shortName"),
+      slug: fd.get("slug"),
+      plan: fd.get("plan") || "STARTER",
+      adminName: fd.get("adminName"),
+      adminEmail: fd.get("adminEmail"),
+      adminPassword: fd.get("adminPassword"),
+      phone: fd.get("phone") || undefined,
+      address: fd.get("address") || undefined,
+    };
     const res = await fetch("/api/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        schoolName: fd.get("schoolName"),
-        shortName: fd.get("shortName"),
-        slug: String(fd.get("slug") || "").toLowerCase().replace(/\s+/g, "-"),
-        adminEmail: fd.get("adminEmail"),
-        adminPassword: fd.get("adminPassword"),
-        adminName: fd.get("adminName"),
-        phone: fd.get("phone") || undefined,
-        address: fd.get("address") || undefined,
-        plan: fd.get("plan") || "STARTER",
-      }),
+      body: JSON.stringify(body),
     });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
@@ -34,28 +36,14 @@ export default function OnboardingPage() {
       setError(data.error || "Could not create school");
       return;
     }
-    setDone({ slug: data.slug });
-  }
-
-  if (done) {
-    return (
-      <main className="min-h-screen bg-paper flex items-center justify-center px-4 py-16">
-        <div className="max-w-md w-full ledger-block text-center space-y-4">
-          <h1 className="font-serif text-2xl">Your school is ready</h1>
-          <p className="text-sm text-ink/70">
-            Tenant <span className="font-mono text-navy">{done.slug}</span> created. Sign in as admin.
-          </p>
-          <Link href="/login" className="inline-block bg-navy text-paper px-6 py-2.5 text-sm">Go to login</Link>
-        </div>
-      </main>
-    );
+    router.push(data.redirectTo || "/login");
   }
 
   return (
-    <main className="min-h-screen bg-paper flex items-center justify-center px-4 py-12">
-      <div className="max-w-lg w-full">
-        <p className="text-xs uppercase tracking-wide text-ink/50 mb-2">School ERP · Multi-tenant</p>
-        <h1 className="font-serif text-3xl mb-2">Onboard your school</h1>
+    <main className="min-h-screen bg-paper text-ink px-4 py-10">
+      <div className="max-w-lg mx-auto">
+        <p className="text-xs tracking-widest uppercase text-ink/40 mb-2">School ERP · Multi-tenant</p>
+        <h1 className="font-serif text-3xl text-navy mb-2">Onboard your school</h1>
         <p className="text-sm text-ink/60 mb-6">
           Isolated workspace with its own admin, branding, and data. KMS and other schools stay separate.
         </p>
@@ -98,8 +86,12 @@ export default function OnboardingPage() {
             {busy ? "Creating school..." : "Create school workspace"}
           </button>
         </form>
-        <p className="text-center text-xs text-ink/40 mt-4">
-          Already have an account? <Link href="/login" className="underline">Sign in</Link>
+        <p className="text-center text-xs text-ink/50 mt-4 space-x-3">
+          <Link href="/platform" className="underline text-navy">Platform</Link>
+          <span>·</span>
+          <Link href="/dashboard" className="underline text-navy">Dashboard</Link>
+          <span>·</span>
+          <Link href="/login" className="underline">Sign in</Link>
         </p>
       </div>
     </main>

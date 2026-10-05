@@ -11,44 +11,44 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "ACCOUNTANT"] },
+  { href: "/dashboard", label: "Dashboard", roles: ["PLATFORM_ADMIN", "ADMIN", "IT", "SECRETARY", "PRINCIPAL", "ACCOUNTANT"] },
+  { href: "/platform", label: "Platform (SaaS)", roles: ["PLATFORM_ADMIN", "ADMIN", "IT"] },
+  { href: "/onboarding", label: "Onboard school", roles: ["PLATFORM_ADMIN", "ADMIN", "IT"] },
   { href: "/portal/student", label: "My Portal", roles: ["STUDENT"] },
   { href: "/portal/parent", label: "Family dashboard", roles: ["PARENT"] },
   {
     href: "/account/password",
     label: "Change password",
-    roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "ACCOUNTANT", "TEACHER", "STUDENT", "PARENT"],
+    roles: ["PLATFORM_ADMIN", "ADMIN", "IT", "SECRETARY", "PRINCIPAL", "ACCOUNTANT", "TEACHER", "STUDENT", "PARENT"],
   },
   { href: "/notices", label: "School notices", roles: ["PARENT"] },
   { href: "/result-checker", label: "Result checker", roles: ["PARENT"] },
   { href: "/portal/teacher", label: "Teacher Portal", roles: ["TEACHER"] },
-  { href: "/students", label: "Students", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "TEACHER"] },
-  { href: "/staff", label: "Staff", roles: ["ADMIN", "IT"] },
-  { href: "/leave", label: "Staff Leave", roles: ["ADMIN", "IT", "PRINCIPAL", "TEACHER", "ACCOUNTANT", "SECRETARY"] },
-  { href: "/payroll", label: "Payroll", roles: ["ADMIN", "ACCOUNTANT"] },
-  { href: "/classes", label: "Classes & Subjects", roles: ["ADMIN", "IT"] },
-  { href: "/timetable", label: "Timetable", roles: ["ADMIN", "IT", "TEACHER", "PRINCIPAL"] },
-  { href: "/modules", label: "Modules hub", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "TEACHER", "ACCOUNTANT"] },
-  { href: "/cbt", label: "CBT", roles: ["ADMIN", "IT", "TEACHER", "PRINCIPAL", "STUDENT"] },
-  { href: "/library", label: "Library", roles: ["ADMIN", "IT", "SECRETARY", "TEACHER", "PRINCIPAL"] },
-  { href: "/hostel", label: "Hostel", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL"] },
-  { href: "/transport", label: "Transport", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "ACCOUNTANT"] },
-  { href: "/attendance", label: "Attendance", roles: ["ADMIN", "TEACHER", "IT"] },
-  { href: "/exams", label: "Scores / CA", roles: ["ADMIN", "TEACHER", "IT", "PRINCIPAL"] },
-  { href: "/fees", label: "Fees", roles: ["ADMIN", "ACCOUNTANT", "SECRETARY", "IT"] },
-  { href: "/fees/structure", label: "Fee structure", roles: ["ADMIN", "ACCOUNTANT"] },
-  { href: "/expenses", label: "Expenses", roles: ["ADMIN", "ACCOUNTANT"] },
-  { href: "/notices", label: "Notices", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL"] },
-  { href: "/cms", label: "Website CMS", roles: ["ADMIN", "IT"] },
-  { href: "/reports", label: "Reports", roles: ["ADMIN", "PRINCIPAL", "IT"] },
-  { href: "/settings/report-template", label: "Report designer", roles: ["ADMIN", "IT", "PRINCIPAL"] },
-  { href: "/settings/security", label: "Security", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "TEACHER", "ACCOUNTANT"] },
-  { href: "/settings/ops", label: "Ops / SMS / Backup", roles: ["ADMIN", "IT"] },
-  { href: "/settings/audit", label: "Audit trail", roles: ["ADMIN", "IT"] },
-  { href: "/settings", label: "Admin Settings", roles: ["ADMIN", "IT"] },
-  { href: "/settings/go-live", label: "Go-live checklist", roles: ["ADMIN", "IT"] },
-  { href: "/platform", label: "Platform (SaaS)", roles: ["PLATFORM_ADMIN", "ADMIN", "IT"] },
-  { href: "/onboarding", label: "Onboard school", roles: ["PLATFORM_ADMIN", "ADMIN", "IT"] },
+  { href: "/students", label: "Students", roles: ["PLATFORM_ADMIN", "ADMIN", "IT", "SECRETARY", "PRINCIPAL", "TEACHER"] },
+  { href: "/staff", label: "Staff", roles: ["PLATFORM_ADMIN", "ADMIN", "IT"] },
+  { href: "/leave", label: "Staff Leave", roles: ["PLATFORM_ADMIN", "ADMIN", "IT", "PRINCIPAL", "TEACHER", "ACCOUNTANT", "SECRETARY"] },
+  { href: "/payroll", label: "Payroll", roles: ["PLATFORM_ADMIN", "ADMIN", "ACCOUNTANT"] },
+  { href: "/classes", label: "Classes & Subjects", roles: ["PLATFORM_ADMIN", "ADMIN", "IT"] },
+  { href: "/timetable", label: "Timetable", roles: ["PLATFORM_ADMIN", "ADMIN", "IT", "TEACHER", "PRINCIPAL"] },
+  { href: "/modules", label: "Modules hub", roles: ["PLATFORM_ADMIN", "ADMIN", "IT", "SECRETARY", "PRINCIPAL", "TEACHER", "ACCOUNTANT"] },
+  { href: "/cbt", label: "CBT", roles: ["PLATFORM_ADMIN", "ADMIN", "IT", "TEACHER", "PRINCIPAL", "STUDENT"] },
+  { href: "/library", label: "Library", roles: ["PLATFORM_ADMIN", "ADMIN", "IT", "SECRETARY", "TEACHER", "PRINCIPAL"] },
+  { href: "/hostel", label: "Hostel", roles: ["PLATFORM_ADMIN", "ADMIN", "IT", "SECRETARY", "PRINCIPAL"] },
+  { href: "/transport", label: "Transport", roles: ["PLATFORM_ADMIN", "ADMIN", "IT", "SECRETARY", "PRINCIPAL", "ACCOUNTANT"] },
+  { href: "/attendance", label: "Attendance", roles: ["PLATFORM_ADMIN", "ADMIN", "TEACHER", "IT"] },
+  { href: "/exams", label: "Scores / CA", roles: ["PLATFORM_ADMIN", "ADMIN", "TEACHER", "IT", "PRINCIPAL"] },
+  { href: "/fees", label: "Fees", roles: ["PLATFORM_ADMIN", "ADMIN", "ACCOUNTANT", "SECRETARY", "IT"] },
+  { href: "/fees/structure", label: "Fee structure", roles: ["PLATFORM_ADMIN", "ADMIN", "ACCOUNTANT"] },
+  { href: "/expenses", label: "Expenses", roles: ["PLATFORM_ADMIN", "ADMIN", "ACCOUNTANT"] },
+  { href: "/notices", label: "Notices", roles: ["PLATFORM_ADMIN", "ADMIN", "IT", "SECRETARY", "PRINCIPAL"] },
+  { href: "/cms", label: "Website CMS", roles: ["PLATFORM_ADMIN", "ADMIN", "IT"] },
+  { href: "/reports", label: "Reports", roles: ["PLATFORM_ADMIN", "ADMIN", "PRINCIPAL", "IT"] },
+  { href: "/settings/report-template", label: "Report designer", roles: ["PLATFORM_ADMIN", "ADMIN", "IT", "PRINCIPAL"] },
+  { href: "/settings/security", label: "Security", roles: ["PLATFORM_ADMIN", "ADMIN", "IT", "SECRETARY", "PRINCIPAL", "TEACHER", "ACCOUNTANT"] },
+  { href: "/settings/ops", label: "Ops / SMS / Backup", roles: ["PLATFORM_ADMIN", "ADMIN", "IT"] },
+  { href: "/settings/audit", label: "Audit trail", roles: ["PLATFORM_ADMIN", "ADMIN", "IT"] },
+  { href: "/settings", label: "Admin Settings", roles: ["PLATFORM_ADMIN", "ADMIN", "IT"] },
+  { href: "/settings/go-live", label: "Go-live checklist", roles: ["PLATFORM_ADMIN", "ADMIN", "IT"] },
 ];
 
 export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
@@ -71,7 +71,9 @@ export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => v
           <div className="min-w-0">
             <p className="font-serif text-lg leading-tight">KMS</p>
             <p className="text-[11px] text-paper/50 truncate">
-              {role.charAt(0) + role.slice(1).toLowerCase()} Portal
+              {role === "PLATFORM_ADMIN"
+                ? "Platform admin portal"
+                : role.charAt(0) + role.slice(1).toLowerCase() + " portal"}
             </p>
           </div>
         </div>
