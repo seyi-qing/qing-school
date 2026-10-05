@@ -14,6 +14,9 @@ const DEFAULT_PASSWORD = "Password123!";
  * Does not touch school ADMIN accounts.
  */
 export async function GET(req: NextRequest) {
+  if (process.env.NODE_ENV === "production" || process.env.ALLOW_SETUP_SEED !== "true") {
+    return NextResponse.json({ ok: false, error: "Platform bootstrap is disabled." }, { status: 404 });
+  }
   const secret = req.nextUrl.searchParams.get("secret");
   const expected = process.env.SETUP_SECRET;
   if (!expected || expected.length < 8) {
@@ -54,7 +57,7 @@ export async function GET(req: NextRequest) {
     ok: true,
     email: user.email,
     role: user.role,
-    password: DEFAULT_PASSWORD,
+    password: undefined,
     note: "Change password on first login. This user is PLATFORM_ADMIN (all schools), not school ADMIN.",
   });
 }
