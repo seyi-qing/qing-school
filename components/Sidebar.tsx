@@ -13,7 +13,9 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "ACCOUNTANT"] },
   { href: "/portal/student", label: "My Portal", roles: ["STUDENT"] },
-  { href: "/portal/parent", label: "My Children", roles: ["PARENT"] },
+  { href: "/portal/parent", label: "Family dashboard", roles: ["PARENT"] },
+  { href: "/notices", label: "School notices", roles: ["PARENT"] },
+  { href: "/result-checker", label: "Result checker", roles: ["PARENT"] },
   { href: "/portal/teacher", label: "Teacher Portal", roles: ["TEACHER"] },
   { href: "/students", label: "Students", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "TEACHER"] },
   { href: "/staff", label: "Staff", roles: ["ADMIN", "IT"] },
@@ -85,7 +87,7 @@ export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => v
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link
-              key={item.href}
+              key={`${item.href}-${item.label}`}
               href={item.href}
               onClick={onNavigate}
               className={`block px-5 py-2.5 text-sm border-l-2 ${
