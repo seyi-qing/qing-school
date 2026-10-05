@@ -2,13 +2,17 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { PortalShell } from "@/components/PortalShell";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 import { StaffTable } from "./StaffTable";
 
 export const dynamic = "force-dynamic";
 
 export default async function StaffPage() {
   const session = await requireSession();
+  const schoolId = await resolveSchoolId(session);
   const staff = await prisma.staff.findMany({
+    where: schoolWhere(schoolId),
     include: { user: { select: { email: true, role: true, isActive: true } } },
     orderBy: [{ lastName: "asc" }],
   });
@@ -24,21 +28,33 @@ export default async function StaffPage() {
         </Link>
       }
     >
-      <StaffTable
-        rows={staff.map((s) => ({
-          id: s.id,
-          staffId: s.staffId,
-          firstName: s.firstName,
-          lastName: s.lastName,
-          designation: s.designation,
-          category: s.category,
-          phone: s.phone,
-          monthlySalary: s.monthlySalary,
-          isActive: s.isActive && s.user.isActive,
-          email: s.user.email,
-          role: s.user.role,
-        }))}
-      />
+      {staff.length === 0 ? (
+        <EmptyState
+          title="No staff yet"
+          description="Add teaching and non-teaching staff so roles, payroll and class teachers work."
+          action={
+            <Link href="/staff/new" className="bg-navy text-paper text-sm px-4 py-2">
+              + Add Staff
+            </Link>
+          }
+        />
+      ) : (
+        <StaffTable
+          rows={staff.map((s) => ({
+            id: s.id,
+            staffId: s.staffId,
+            firstName: s.firstName,
+            lastName: s.lastName,
+            designation: s.designation,
+            category: s.category,
+            phone: s.phone,
+            monthlySalary: s.monthlySalary,
+            isActive: s.isActive && s.user.isActive,
+            email: s.user.email,
+            role: s.user.role,
+          }))}
+        />
+      )}
     </PortalShell>
   );
 }

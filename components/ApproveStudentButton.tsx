@@ -2,9 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useToast } from "@/components/ui/Toast";
 
 export function ApproveStudentButton({ studentId }: { studentId: string }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
   async function approve() {
@@ -15,6 +17,7 @@ export function ApproveStudentButton({ studentId }: { studentId: string }) {
       body: JSON.stringify({ status: "ACTIVE" }),
     });
     setLoading(false);
+    toast("Student approved.", "success");
     router.refresh();
   }
 
