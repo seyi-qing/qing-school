@@ -5,6 +5,7 @@ import { PayOnlineButton } from "@/components/PayOnlineButton";
 import { formatNaira } from "@/lib/format";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +19,8 @@ export default async function ParentPortalPage() {
       student: {
         include: {
           arm: { include: { schoolClass: true } },
-          invoices: { orderBy: { createdAt: "desc" } },
-          attendances: { orderBy: { date: "desc" }, take: 5 },
+          invoices: { orderBy: { createdAt: "desc" }, take: 10 },
+          attendances: { orderBy: { date: "desc" }, take: 8 },
         },
       },
     },
@@ -28,99 +29,143 @@ export default async function ParentPortalPage() {
   return (
     <PortalShell
       role={session.role}
-      title="My Children"
-      subtitle={`${links.length} child(ren) linked to your account`}
+      title="Family dashboard"
+      subtitle="Balances, attendance and notices for your children"
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-        {links.map((link) => {
-          const s = link.student;
-          const balance = s.invoices.reduce((sum, i) => sum + (i.totalAmount - i.amountPaid), 0);
-          const presentRate = s.attendances.length
-            ? Math.round(
-                (s.attendances.filter((a) => a.status === "PRESENT").length / s.attendances.length) *
-                  100
-              )
-            : null;
-          const unpaid = s.invoices.filter((i) => i.status !== "PAID");
+      {links.length === 0 ? (
+        <EmptyState
+          title="No children linked"
+          description="Contact the school office to link your wards to this parent account."
+        />
+      ) : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {(() => {
+              const totalBalance = links.reduce(
+                (sum, l) =>
+                  sum +
+                  l.student.invoices.reduce((s, i) => s + (i.totalAmount - i.amountPaid), 0),
+                0
+              );
+              const absences = links.reduce(
+                (sum, l) =>
+                  sum + l.student.attendances.filter((a) => a.status === "ABSENT").length,
+                0
+              );
+              return (
+                <>
+                  <div className="ledger-block p-4">
+                    <p className="text-xs uppercase tracking-wide text-ink/50">Children</p>
+                    <p className="font-serif text-2xl mt-1">{links.length}</p>
+                  </div>
+                  <div className="ledger-block p-4">
+                    <p className="text-xs uppercase tracking-wide text-ink/50">Total balance</p>
+                    <p className="font-serif text-2xl mt-1 text-brick">{formatNaira(totalBalance)}</p>
+                  </div>
+                  <div className="ledger-block p-4">
+                    <p className="text-xs uppercase tracking-wide text-ink/50">Recent absences</p>
+                    <p className="font-serif text-2xl mt-1">{absences}</p>
+                  </div>
+                  <div className="ledger-block p-4">
+                    <p className="text-xs uppercase tracking-wide text-ink/50">Next step</p>
+                    <p className="text-sm mt-2 text-navy font-medium">
+                      {totalBalance > 0 ? "Pay fees" : "All clear"}
+                    </p>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
 
-          return (
-            <section key={s.id} className="ledger-block">
-              <div className="flex items-center justify-between mb-2 gap-2">
-                <h2 className="font-serif text-lg">
-                  {s.firstName} {s.lastName}
-                </h2>
-                <span className="text-xs text-ink/50 shrink-0">{link.relation}</span>
-              </div>
-              <p className="text-sm text-ink/60 mb-3">
-                {s.arm ? `${s.arm.schoolClass.name} ${s.arm.name}` : "Unassigned"} ·{" "}
-                {s.admissionNumber}
-              </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            {links.map((link) => {
+              const s = link.student;
+              const balance = s.invoices.reduce((sum, i) => sum + (i.totalAmount - i.amountPaid), 0);
+              const lastAbsence = s.attendances.find((a) => a.status === "ABSENT");
+              const unpaid = s.invoices.filter((i) => i.status !== "PAID");
+              const classLabel = s.arm
+                ? `${s.arm.schoolClass.name} ${s.arm.name}`
+                : "Class not assigned";
 
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div>
-                  <p className="text-xs text-ink/50">Fee balance</p>
-                  <p className={`font-medium ${balance > 0 ? "text-brick" : "text-sage"}`}>
-                    {formatNaira(balance)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-ink/50">Recent attendance</p>
-                  <p className="font-medium">
-                    {presentRate !== null ? `${presentRate}%` : "No data"}
-                  </p>
-                </div>
-              </div>
+              return (
+                <section key={s.id} className="ledger-block p-5 space-y-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h2 className="font-serif text-lg">
+                        {s.firstName} {s.lastName}
+                      </h2>
+                      <p className="text-xs text-ink/50">
+                        {s.admissionNumber} · {classLabel}
+                      </p>
+                    </div>
+                    <span
+                      className={`text-xs px-2 py-1 rounded-full ${
+                        balance > 0 ? "bg-brick/10 text-brick" : "bg-sage/15 text-sage"
+                      }`}
+                    >
+                      {balance > 0 ? "Fees due" : "Paid up"}
+                    </span>
+                  </div>
 
-              <div className="flex flex-wrap gap-3 text-sm mb-4">
-                <Link href={`/students/${s.id}`} className="text-navy underline">
-                  Full record
-                </Link>
-                <Link href={`/students/${s.id}/report-card`} className="text-navy underline">
-                  Report card
-                </Link>
-              </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="bg-paper/80 border border-line p-3 rounded">
+                      <p className="text-xs text-ink/50">Balance</p>
+                      <p className="font-medium text-lg">{formatNaira(balance)}</p>
+                    </div>
+                    <div className="bg-paper/80 border border-line p-3 rounded">
+                      <p className="text-xs text-ink/50">Last absence</p>
+                      <p className="font-medium">
+                        {lastAbsence
+                          ? new Date(lastAbsence.date).toLocaleDateString("en-NG")
+                          : "None recent"}
+                      </p>
+                    </div>
+                  </div>
 
-              {unpaid.length > 0 && (
-                <div className="border-t border-line pt-3 space-y-3">
-                  <p className="text-xs uppercase tracking-wide text-ink/50">Pay fees online</p>
-                  {unpaid.map((inv) => {
-                    const bal = inv.totalAmount - inv.amountPaid;
-                    return (
-                      <div
-                        key={inv.id}
-                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm"
-                      >
-                        <div>
-                          <span className="font-medium">{formatNaira(bal)}</span>
-                          <span className="text-ink/50 text-xs ml-2">due of {formatNaira(inv.totalAmount)}</span>
-                          <span className="status-pill text-xs ml-2">{inv.status}</span>
-                        </div>
-                        <PayOnlineButton
-                          invoiceId={inv.id}
-                          maxAmount={bal}
-                          defaultEmail={session.email}
-                        />
+                  {unpaid.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs uppercase tracking-wide text-ink/50">Open invoices</p>
+                      <ul className="text-sm space-y-1">
+                        {unpaid.slice(0, 3).map((inv) => (
+                          <li key={inv.id} className="flex justify-between gap-2">
+                            <span className="text-ink/70 truncate">
+                              {inv.status} · {formatNaira(inv.totalAmount - inv.amountPaid)} due
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="pt-1">
+                        {unpaid[0] && (
+                          <PayOnlineButton
+                            invoiceId={unpaid[0].id}
+                            maxAmount={unpaid[0].totalAmount - unpaid[0].amountPaid}
+                          />
+                        )}
                       </div>
-                    );
-                  })}
-                  <p className="text-[11px] text-ink/40">
-                    Opens checkout (Paystack/Flutterwave when configured, or demo pay page).
-                  </p>
-                </div>
-              )}
+                    </div>
+                  )}
 
-              {balance <= 0 && unpaid.length === 0 && (
-                <p className="text-xs text-sage">No outstanding fees.</p>
-              )}
-            </section>
-          );
-        })}
-        {links.length === 0 && (
-          <p className="text-ink/50">
-            No children linked to your account yet. Contact the school office.
-          </p>
-        )}
-      </div>
+                  {balance <= 0 && unpaid.length === 0 && (
+                    <p className="text-xs text-sage">No outstanding fees for this child.</p>
+                  )}
+
+                  <div className="flex flex-wrap gap-2 pt-1 border-t border-line">
+                    <Link
+                      href={`/students/${s.id}/report-card`}
+                      className="text-xs text-navy underline"
+                    >
+                      Report card
+                    </Link>
+                    <Link href="/notices" className="text-xs text-navy underline">
+                      School notices
+                    </Link>
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </PortalShell>
   );
 }

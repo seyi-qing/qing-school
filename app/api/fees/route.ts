@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
+import { resolveSchoolId } from "@/lib/tenant-scope";
 
 const FeeItemSchema = z.object({
   armId: z.string(),
@@ -21,8 +22,13 @@ export async function GET(req: Request) {
   const armId = searchParams.get("armId") ?? undefined;
   const termId = searchParams.get("termId") ?? undefined;
 
+  const schoolId = await resolveSchoolId(session);
   const items = await prisma.feeItem.findMany({
-    where: { armId, termId },
+    where: {
+      armId,
+      termId,
+      ...(schoolId ? { arm: { schoolClass: { schoolId } } } : {}),
+    },
     orderBy: { createdAt: "asc" },
   });
   return NextResponse.json({ items });
