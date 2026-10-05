@@ -72,7 +72,7 @@ export async function PATCH(req: Request) {
     const passwordHash = await hashPassword(newPassword);
     await prisma.user.update({
       where: { id: staff.userId },
-      data: { passwordHash },
+      data: { passwordHash, mustChangePassword: true },
     });
     await logAudit({
       userId: session.userId,
@@ -154,7 +154,13 @@ export async function POST(req: Request) {
   const passwordHash = await hashPassword(defaultPassword);
   const schoolIdCreate = await resolveSchoolId(session);
   const user = await prisma.user.create({
-    data: { email: data.email, passwordHash, role: data.role, schoolId: schoolIdCreate ?? undefined },
+    data: {
+      email: data.email,
+      passwordHash,
+      role: data.role,
+      schoolId: schoolIdCreate ?? undefined,
+      mustChangePassword: true,
+    },
   });
 
   const staff = await prisma.staff.create({
