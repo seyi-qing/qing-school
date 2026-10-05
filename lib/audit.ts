@@ -1,24 +1,30 @@
 /**
- * Audit Trail
- * ------------------------------------------------------------------
- * Every write operation that matters (creating a student, recording a
- * payment, editing a score, changing a user's role...) should call
- * logAudit() so Admin/IT can answer "who did this, and when" from
- * Admin Settings > Audit Trail. This is a compliance/trust feature parents
- * and proprietors specifically expect from paid school software.
+ * Audit Trail — every meaningful write should call logAudit().
+ * schoolId is resolved from the actor when possible so multi-tenant
+ * schools only see their own trail.
  */
 import { prisma } from "@/lib/db";
 
 export async function logAudit(params: {
   userId?: string | null;
+  schoolId?: string | null;
   action: string;
   entity: string;
   entityId?: string;
   details?: Record<string, unknown>;
 }) {
+  let schoolId = params.schoolId ?? undefined;
+  if (!schoolId && params.userId) {
+    const u = await prisma.user.findUnique({
+      where: { id: params.userId },
+      select: { schoolId: true },
+    });
+    schoolId = u?.schoolId ?? undefined;
+  }
   await prisma.auditLog.create({
     data: {
       userId: params.userId ?? undefined,
+      schoolId,
       action: params.action,
       entity: params.entity,
       entityId: params.entityId,
