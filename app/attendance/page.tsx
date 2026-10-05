@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { PortalShell } from "@/components/PortalShell";
 import { AttendanceForm } from "./AttendanceForm";
+import { ArmPicker } from "./ArmPicker";
 import { redirect } from "next/navigation";
 import { homeRouteForRole } from "@/lib/permissions";
 import Link from "next/link";
@@ -39,32 +40,17 @@ export default async function AttendancePage({
       })
     : [];
   const marksByStudent = Object.fromEntries(todaysMarks.map((m) => [m.studentId, m.status]));
-
   const selectedArm = arms.find((a) => a.id === selectedArmId);
 
   return (
     <PortalShell role={session.role} title="Attendance" subtitle="Mark today's attendance for a class">
-      <form method="GET" className="mb-4 flex flex-wrap gap-2 items-center">
-        <select
-          name="armId"
-          defaultValue={selectedArmId}
-          className="border border-line px-3 py-2 text-sm bg-white"
-          onChange="this.form.submit()"
-          // @ts-expect-error server component uses native form submit attribute via dangerouslySet
-        >
-          {arms.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.schoolClass.name} {a.name} ({a._count.students})
-            </option>
-          ))}
-        </select>
-      </form>
-
-      {/* Client-side auto-submit without invalid JSX onChange on server component */}
-      <ArmSelectClient arms={arms.map((a) => ({
-        id: a.id,
-        label: `${a.schoolClass.name} ${a.name} (${a._count.students})`,
-      }))} selectedArmId={selectedArmId} />
+      <ArmPicker
+        arms={arms.map((a) => ({
+          id: a.id,
+          label: `${a.schoolClass.name} ${a.name} (${a._count.students})`,
+        }))}
+        selectedArmId={selectedArmId}
+      />
 
       {selectedArmId && students.length === 0 ? (
         <div className="ledger-block text-sm text-ink/70 space-y-2">
@@ -74,11 +60,17 @@ export default async function AttendancePage({
                 ? `${selectedArm.schoolClass.name} ${selectedArm.name}`
                 : "This class"}
             </strong>{" "}
-            has no active students assigned.
+            has <strong>0 active students</strong> assigned.
           </p>
           <p>
-            Assign students under <Link href="/students" className="text-navy underline">Students</Link>
-            {" "}(edit student → set class/arm), or admit new students into this arm.
+            That is why the list is empty — not a bug in the attendance module. Assign students under{" "}
+            <Link href="/students" className="text-navy underline">
+              Students
+            </Link>{" "}
+            (open student → set class/arm to JSS 2 A), or admit new students into this arm.
+          </p>
+          <p className="text-xs text-ink/50">
+            JSS 1 A works on Scores because those three students are already in that arm.
           </p>
         </div>
       ) : selectedArmId ? (
@@ -96,11 +88,4 @@ export default async function AttendancePage({
       )}
     </PortalShell>
   );
-}
-
-function ArmSelectClient(_props: {
-  arms: { id: string; label: string }[];
-  selectedArmId?: string;
-}) {
-  return null;
 }
