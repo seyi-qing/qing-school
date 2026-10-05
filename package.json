@@ -6,7 +6,7 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
@@ -18,7 +18,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:status": "prisma migrate status",
-    "build:safe": "prisma generate && prisma migrate deploy && next build",
+    "build:safe": "prisma generate && next build",
     "build:migrate": "prisma generate && prisma migrate deploy && next build",
     "typecheck": "tsc --noEmit",
     "build:ci": "prisma generate && next build"
