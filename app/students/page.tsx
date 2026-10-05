@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
+import { resolveSchoolId } from "@/lib/tenant-scope";
 import { PortalShell } from "@/components/PortalShell";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { ApproveStudentButton } from "@/components/ApproveStudentButton";
 import { BulkAssignClass } from "@/components/BulkAssignClass";
 import { can, homeRouteForRole } from "@/lib/permissions";
@@ -17,6 +19,7 @@ export default async function StudentsPage({
   searchParams: { q?: string; status?: string };
 }) {
   const session = await requireSession();
+  const schoolId = await resolveSchoolId(session);
   if (!ALLOWED_ROLES.includes(session.role)) redirect(homeRouteForRole(session.role));
 
   const q = searchParams.q?.trim();
@@ -27,6 +30,7 @@ export default async function StudentsPage({
     prisma.student.findMany({
       where: {
         status: statusFilter,
+        ...(schoolId ? { schoolId } : {}),
         ...(q
           ? {
               OR: [
@@ -41,8 +45,9 @@ export default async function StudentsPage({
       orderBy: [{ lastName: "asc" }],
       take: 200,
     }),
-    prisma.student.count({ where: { status: "APPLIED" } }),
+    prisma.student.count({ where: { status: "APPLIED", ...(schoolId ? { schoolId } : {}) } }),
     prisma.arm.findMany({
+      where: schoolId ? { schoolClass: { schoolId } } : undefined,
       include: { schoolClass: true },
       orderBy: [{ schoolClass: { order: "asc" } }, { name: "asc" }],
     }),
@@ -124,6 +129,20 @@ export default async function StudentsPage({
         />
       )}
 
+      {students.length === 0 && (
+        <EmptyState
+          title="No students in this list"
+          description="Admit a student or switch the status tab above."
+          action={
+            canAdmit ? (
+              <Link href="/students/new" className="bg-navy text-paper text-sm px-4 py-2">
+                + Admit student
+              </Link>
+            ) : undefined
+          }
+        />
+      )}
+
       <div className="md:hidden space-y-2 mb-4">
         {students.map((s) => (
           <Link
@@ -143,9 +162,6 @@ export default async function StudentsPage({
             </p>
           </Link>
         ))}
-        {students.length === 0 && (
-          <p className="text-center text-ink/50 py-8 text-sm">No students in this list.</p>
-        )}
       </div>
 
       <div className="hidden md:block ledger-block !p-0 overflow-x-auto">
@@ -189,13 +205,6 @@ export default async function StudentsPage({
                 </td>
               </tr>
             ))}
-            {students.length === 0 && (
-              <tr>
-                <td colSpan={5} className="text-center text-ink/50 py-8">
-                  No students in this list.
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
