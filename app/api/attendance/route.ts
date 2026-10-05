@@ -18,9 +18,11 @@ const MarkSchema = z.object({
   notifyParents: z.boolean().optional().default(true),
 });
 
-async function getCurrentTerm() {
-  const term = await prisma.term.findFirst({ where: { isCurrent: true } });
-  if (!term) throw new Error("No current term is set. An admin must set one in Admin Settings.");
+async function getCurrentTerm(schoolId: string) {
+  const term = await prisma.term.findFirst({
+    where: { schoolId, isCurrent: true },
+  });
+  if (!term) throw new Error("No current term is set for this school. An admin must set one in Admin Settings.");
   return term;
 }
 
