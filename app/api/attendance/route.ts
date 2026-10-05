@@ -41,18 +41,43 @@ export async function POST(req: Request) {
 
   const { date, marks, notifyParents } = parsed.data;
   const schoolId = await resolveSchoolId(session);
+
   if (schoolId && marks.length) {
     const ids = marks.map((m) => m.studentId);
-    const allowed = await prisma.student.count({
-      where: { id: { in: ids }, schoolId },
+    const students = await prisma.student.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, schoolId: true },
     });
-    if (allowed !== ids.length) {
+
+    if (students.length !== ids.length) {
+      return NextResponse.json(
+        { error: "One or more students were not found." },
+        { status: 404 }
+      );
+    }
+
+    // Block only students that belong to a *different* school.
+    // null schoolId = legacy KMS data → allowed and backfilled below.
+    const foreign = students.filter(
+      (s) => s.schoolId != null && s.schoolId !== schoolId
+    );
+    if (foreign.length > 0) {
       return NextResponse.json(
         { error: "One or more students are outside your school." },
         { status: 403 }
       );
     }
+
+    // Backfill legacy rows so future checks stay fast and isolation holds.
+    const legacyIds = students.filter((s) => s.schoolId == null).map((s) => s.id);
+    if (legacyIds.length > 0) {
+      await prisma.student.updateMany({
+        where: { id: { in: legacyIds }, schoolId: null },
+        data: { schoolId },
+      });
+    }
   }
+
   const term = await getCurrentTerm();
   const day = new Date(date);
 
