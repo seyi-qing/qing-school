@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs";
 import type { Role } from "@prisma/client";
 
 const COOKIE_NAME = "kms_session";
-const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 7; // 7 days
+const SESSION_DURATION_SECONDS = 60 * 60 * 8; // 8 hours
 
 function getSecretKey() {
   const secret = process.env.SESSION_SECRET;
@@ -27,6 +27,7 @@ export interface SessionPayload {
   email: string;
   schoolId?: string | null;
   mustChangePassword?: boolean;
+  sessionVersion?: number;
   [key: string]: unknown;
 }
 
@@ -63,7 +64,13 @@ export async function getSession(): Promise<SessionPayload | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, getSecretKey());
-    return payload as SessionPayload;
+    const session = payload as SessionPayload;
+    const { prisma } = await import("@/lib/db");
+    const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { isActive: true, role: true, schoolId: true, mustChangePassword: true, sessionVersion: true, lockedUntil: true } });
+    if (!user || !user.isActive || (user.lockedUntil && user.lockedUntil > new Date())) return null;
+    if (user.role !== session.role || (user.schoolId ?? null) !== (session.schoolId ?? null)) return null;
+    if ((user.sessionVersion ?? 0) !== (session.sessionVersion ?? 0)) return null;
+    return { ...session, mustChangePassword: user.mustChangePassword };
   } catch {
     return null;
   }
