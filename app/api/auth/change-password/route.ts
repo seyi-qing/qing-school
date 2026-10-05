@@ -43,7 +43,7 @@ export async function POST(req: Request) {
   const passwordHash = await hashPassword(parsed.data.newPassword);
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash, mustChangePassword: false },
+    data: { passwordHash, mustChangePassword: false, sessionVersion: { increment: 1 }, failedLoginCount: 0, lockedUntil: null },
   });
 
   await createSession({
@@ -52,6 +52,7 @@ export async function POST(req: Request) {
     email: user.email,
     schoolId: user.schoolId ?? null,
     mustChangePassword: false,
+    sessionVersion: user.sessionVersion + 1,
   });
 
   await logAudit({
