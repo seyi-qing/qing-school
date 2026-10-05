@@ -57,6 +57,8 @@ model School {
   libraryBooks    LibraryBook[]
   hostelRooms     HostelRoom[]
   transportRoutes TransportRoute[]
+  cbtExams        CbtExam[]
+  expenses        ExpenseRecord[]
 
   @@index([isActive])
 }
@@ -280,7 +282,7 @@ model HostelRoom {
   school      School?            @relation(fields: [schoolId], references: [id])
   name        String
   block       String?
-  capacity   Int                @default(4)
+  capacity    Int                @default(4)
   gender      String?
   allocations HostelAllocation[]
   createdAt   DateTime           @default(now())
@@ -372,6 +374,8 @@ model SiteTheme {
 
 model CbtExam {
   id              String        @id @default(cuid())
+  schoolId        String?
+  school          School?       @relation(fields: [schoolId], references: [id])
   title           String
   durationMinutes Int           @default(30)
   armId           String?
@@ -382,6 +386,7 @@ model CbtExam {
   questions       CbtQuestion[]
   attempts        CbtAttempt[]
   createdAt       DateTime      @default(now())
+  @@index([schoolId])
 }
 
 model CbtQuestion {
@@ -523,11 +528,14 @@ model Payment {
 
 model ExpenseRecord {
   id          String   @id @default(cuid())
+  schoolId    String?
+  school      School?  @relation(fields: [schoolId], references: [id])
   category    String
   description String
   amount      Float
   date        DateTime @default(now())
   recordedBy  String?
+  @@index([schoolId])
 }
 
 model Payslip {
