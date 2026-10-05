@@ -62,11 +62,13 @@ export async function PATCH(req: Request) {
     );
   }
 
-  const existing = await prisma.transportRoute.findUnique({ where: { id: parsed.data.id } });
+  const schoolId = await resolveSchoolId(session);
+  if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 409 });
+  const existing = await prisma.transportRoute.findFirst({ where: { id: parsed.data.id, schoolId } });
   if (!existing) return NextResponse.json({ error: "Route not found" }, { status: 404 });
 
   const route = await prisma.transportRoute.update({
-    where: { id: parsed.data.id },
+    where: { id: existing.id },
     data: {
       name: parsed.data.name.trim(),
       vehicle: parsed.data.vehicle?.trim() || null,
@@ -112,7 +114,7 @@ export async function DELETE(req: Request) {
     );
   }
 
-  await prisma.transportRoute.delete({ where: { id } });
+  await prisma.transportRoute.delete({ where: { id: route.id } });
   await logAudit({
     userId: session.userId,
     action: "DELETE_TRANSPORT_ROUTE",
@@ -139,10 +141,10 @@ export async function POST(req: Request) {
     if (!en || en.status !== "ACTIVE") {
       return NextResponse.json({ error: "Enrollment not found" }, { status: 404 });
     }
-    if (!en.route.feeAmount || en.route.feeAmount <= 0) {
+    if (!en.route.feeAmount || Number(en.route.feeAmount) <= 0) {
       return NextResponse.json({ error: "Route has no fee amount set" }, { status: 400 });
     }
-    const term = await prisma.term.findFirst({ where: { isCurrent: true } });
+    const term = await prisma.term.findFirst({ where: { isCurrent: true, schoolId } });
     if (!term) {
       return NextResponse.json({ error: "No current term set" }, { status: 400 });
     }
@@ -153,7 +155,7 @@ export async function POST(req: Request) {
         lineItems: JSON.stringify([
           { name: `Transport: ${en.route.name}`, amount: en.route.feeAmount },
         ]),
-        totalAmount: en.route.feeAmount,
+        totalAmount: Number(en.route.feeAmount),
         status: "UNPAID",
       },
     });

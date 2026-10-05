@@ -17,9 +17,22 @@ interface InitResult {
   reference: string;
 }
 
-export function isMockMode(provider: PaymentProvider) {
-  if (provider === "PAYSTACK") return !process.env.PAYSTACK_SECRET_KEY;
-  return !process.env.FLUTTERWAVE_SECRET_KEY;
+export function isMockMode(_provider: PaymentProvider) {
+  const mode = (process.env.PAYMENTS_MODE || "mock").toLowerCase();
+  if (mode === "mock") {
+    if (process.env.NODE_ENV === "production" && process.env.ALLOW_MOCK_PAYMENTS !== "true") {
+      throw new Error("Mock payments are disabled in production. Set ALLOW_MOCK_PAYMENTS=true only for controlled staging/demo operation.");
+    }
+    return true;
+  }
+  if (mode === "live") return false;
+  throw new Error("Invalid PAYMENTS_MODE. Use live or mock.");
+}
+
+export function assertPaymentConfiguration(provider: PaymentProvider) {
+  if ((process.env.PAYMENTS_MODE || "mock").toLowerCase() !== "live") return;
+  const key = provider === "PAYSTACK" ? process.env.PAYSTACK_SECRET_KEY : process.env.FLUTTERWAVE_SECRET_KEY;
+  if (!key) throw new Error(provider + " secret key is required when PAYMENTS_MODE=live.");
 }
 
 function appBaseUrl() {
@@ -40,6 +53,8 @@ export async function initializePayment(params: {
   metadata: Record<string, unknown>;
   reference?: string;
 }): Promise<InitResult> {
+  assertPaymentConfiguration(params.provider);
+
   const reference =
     params.reference ||
     `${SCHOOL.paymentRefPrefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

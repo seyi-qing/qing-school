@@ -20,37 +20,20 @@ const InitiateOnlineSchema = z.object({
   email: z.string().email(),
 });
 
-async function applyManualPayment(
-  invoiceId: string,
-  amount: number,
-  method: string,
-  reference: string,
-  recordedBy?: string
-) {
-  const invoice = await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
-
-  const payment = await prisma.payment.create({
-    data: {
-      invoiceId,
-      studentId: invoice.studentId,
-      amount,
-      method,
-      reference,
-      status: "SUCCESS",
-      recordedBy,
-    },
+async function applyManualPayment(invoiceId: string, amount: number, method: string, reference: string, recordedBy: string, schoolId: string) {
+  return prisma.$transaction(async (tx) => {
+    const invoice = await tx.invoice.findFirst({ where: { id: invoiceId, schoolId } });
+    if (!invoice) throw new Error("Invoice not found");
+    const remaining = Number(invoice.totalAmount) - Number(invoice.amountPaid);
+    if (amount > remaining + 0.01) throw new Error("Amount exceeds invoice balance");
+    const payment = await tx.payment.create({
+      data: { invoiceId, studentId: invoice.studentId, schoolId, amount, method, reference, status: "SUCCESS", recordedBy },
+    });
+    const newPaid = Number(invoice.amountPaid) + amount;
+    const status = newPaid >= Number(invoice.totalAmount) ? "PAID" : newPaid > 0 ? "PARTIAL" : "UNPAID";
+    await tx.invoice.update({ where: { id: invoiceId }, data: { amountPaid: newPaid, status } });
+    return payment;
   });
-
-  const newPaid = invoice.amountPaid + amount;
-  const status =
-    newPaid >= invoice.totalAmount ? "PAID" : newPaid > 0 ? "PARTIAL" : "UNPAID";
-
-  await prisma.invoice.update({
-    where: { id: invoiceId },
-    data: { amountPaid: newPaid, status },
-  });
-
-  return payment;
 }
 
 export async function POST(req: Request) {
@@ -64,15 +47,16 @@ export async function POST(req: Request) {
     }
 
     const { invoiceId, amount, provider, email } = parsed.data;
+    const checkoutSession = await getSession();
     const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+      where: { id: invoiceId, ...(checkoutSession?.schoolId ? { schoolId: checkoutSession.schoolId } : {}) },
       include: { student: true },
     });
     if (!invoice) {
       return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
     }
 
-    const remaining = invoice.totalAmount - invoice.amountPaid;
+    const remaining = Number(invoice.totalAmount) - Number(invoice.amountPaid);
     if (amount > remaining + 0.01) {
       return NextResponse.json({ error: "Amount exceeds balance." }, { status: 400 });
     }
@@ -98,6 +82,7 @@ export async function POST(req: Request) {
           method: provider,
           reference: init.reference,
           status: "PENDING",
+          schoolId: invoice.schoolId,
         },
       });
 

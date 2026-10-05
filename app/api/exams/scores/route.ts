@@ -36,7 +36,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "armSubjectId and termId are required." }, { status: 400 });
   }
 
-  const scores = await prisma.score.findMany({ where: { armSubjectId, termId } });
+  const schoolId = await resolveSchoolId(session);
+  if (!schoolId) return NextResponse.json({ error: "School context required." }, { status: 409 });
+  const scores = await prisma.score.findMany({ where: { armSubjectId, termId, schoolId } });
   return NextResponse.json({ scores, limits: { ca1: CA1_MAX, ca2: CA2_MAX, exam: EXAM_MAX } });
 }
 
@@ -62,6 +64,7 @@ export async function POST(req: Request) {
   }
   const { armSubjectId, termId, scores } = parsed.data;
   const schoolId = await resolveSchoolId(session);
+  if (!schoolId) return NextResponse.json({ error: "School context required." }, { status: 409 });
   if (schoolId && scores.length) {
     const ids = scores.map((s) => s.studentId);
     const allowed = await prisma.student.count({ where: { id: { in: ids }, schoolId } });
@@ -69,6 +72,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "One or more students are outside your school." }, { status: 403 });
     }
   }
+
+  const [armSubject, term] = await Promise.all([prisma.armSubject.findFirst({ where: { id: armSubjectId, schoolId } }), prisma.term.findFirst({ where: { id: termId, schoolId } })]);
+  if (!armSubject || !term) return NextResponse.json({ error: "Subject/term is outside your school." }, { status: 403 });
 
   for (const s of scores) {
     const total = s.ca1 + s.ca2 + s.exam;

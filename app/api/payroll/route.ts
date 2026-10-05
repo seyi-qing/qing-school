@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
   let generated = 0;
   for (const staff of staffList) {
-    const gross = staff.monthlySalary ?? 0;
+    const gross = Number(staff.monthlySalary ?? 0);
     const deductions = Math.round(gross * (deductionPercent / 100));
     const net = gross - deductions;
 

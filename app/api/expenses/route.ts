@@ -41,9 +41,9 @@ export async function GET() {
   return NextResponse.json({
     expenses,
     summary: {
-      income: incomeAgg._sum.amount ?? 0,
-      expenses: expenseAgg._sum.amount ?? 0,
-      net: (incomeAgg._sum.amount ?? 0) - (expenseAgg._sum.amount ?? 0),
+      income: Number(incomeAgg._sum.amount ?? 0),
+      expenses: Number(expenseAgg._sum.amount ?? 0),
+      net: Number(incomeAgg._sum.amount ?? 0) - Number(expenseAgg._sum.amount ?? 0),
     },
   });
 }

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { PortalShell, StatBlock } from "@/components/PortalShell";
 import { can, homeRouteForRole } from "@/lib/permissions";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 import { formatNaira } from "@/lib/format";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -32,8 +33,8 @@ export default async function DashboardPage() {
       }),
     ]);
 
-  const collected = invoices.reduce((sum, i) => sum + i.amountPaid, 0);
-  const outstanding = invoices.reduce((sum, i) => sum + (i.totalAmount - i.amountPaid), 0);
+  const collected = invoices.reduce((sum, i) => sum + Number(i.amountPaid), 0);
+  const outstanding = invoices.reduce((sum, i) => sum + (Number(i.totalAmount) - Number(i.amountPaid)), 0);
   const presentToday = todayAttendance.filter((a) => a.status === "PRESENT").length;
   const attendancePct =
     todayAttendance.length > 0 ? Math.round((presentToday / todayAttendance.length) * 100) : null;
@@ -75,19 +76,13 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <section className="ledger-block">
           <h2 className="font-serif text-base sm:text-lg mb-3">Quick actions</h2>
-          <div className="flex flex-col gap-2 text-sm">
-            <Link href="/students/new" className="text-navy underline hover:text-gold py-1">
-              Admit a new student
-            </Link>
-            <Link href="/fees" className="text-navy underline hover:text-gold py-1">
-              Collect a fee payment
-            </Link>
-            <Link href="/attendance" className="text-navy underline hover:text-gold py-1">
-              Take today&apos;s attendance
-            </Link>
-            <Link href="/notices" className="text-navy underline hover:text-gold py-1">
-              Post a notice
-            </Link>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            {actions.map(([label, href]) => (
+              <Link key={href} href={href} className="border border-line bg-white px-3 py-3 hover:border-gold hover:bg-paper transition-colors">
+                <span className="block font-medium">{label}</span>
+                <span className="text-xs text-ink/50">Open workspace →</span>
+              </Link>
+            ))}
           </div>
         </section>
 

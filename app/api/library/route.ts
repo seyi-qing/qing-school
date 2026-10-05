@@ -39,10 +39,11 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const schoolId = await resolveSchoolId(session);
+  if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 409 });
   const [books, openLoans] = await Promise.all([
     prisma.libraryBook.findMany({ where: schoolWhere(schoolId), orderBy: { title: "asc" } }),
     prisma.bookLoan.findMany({
-      where: { returnedAt: null, ...(schoolId ? { book: { schoolId } } : {}) },
+      where: { returnedAt: null, schoolId },
       include: {
         book: true,
         student: { select: { firstName: true, lastName: true, admissionNumber: true } },
@@ -67,7 +68,9 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Invalid book data" }, { status: 400 });
   }
 
-  const book = await prisma.libraryBook.findUnique({ where: { id: parsed.data.id } });
+  const schoolId = await resolveSchoolId(session);
+  if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 409 });
+  const book = await prisma.libraryBook.findFirst({ where: { id: parsed.data.id, schoolId } });
   if (!book) return NextResponse.json({ error: "Book not found" }, { status: 404 });
 
   const onLoan = book.copies - book.available;
@@ -110,7 +113,11 @@ export async function DELETE(req: Request) {
   const id = typeof body?.id === "string" ? body.id : null;
   if (!id) return NextResponse.json({ error: "Book id required" }, { status: 400 });
 
-  const open = await prisma.bookLoan.count({ where: { bookId: id, returnedAt: null } });
+  const schoolId = await resolveSchoolId(session);
+  if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 409 });
+  const book = await prisma.libraryBook.findFirst({ where: { id, schoolId } });
+  if (!book) return NextResponse.json({ error: "Book not found" }, { status: 404 });
+  const open = await prisma.bookLoan.count({ where: { bookId: book.id, schoolId, returnedAt: null } });
   if (open > 0) {
     return NextResponse.json(
       { error: `Cannot delete: ${open} open loan(s). Return books first.` },
@@ -118,7 +125,7 @@ export async function DELETE(req: Request) {
     );
   }
 
-  await prisma.libraryBook.delete({ where: { id } });
+  await prisma.libraryBook.delete({ where: { id: book.id } });
   await logAudit({
     userId: session.userId,
     action: "DELETE_LIBRARY_BOOK",
@@ -140,7 +147,9 @@ export async function POST(req: Request) {
     const parsed = ReturnSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: "Invalid" }, { status: 400 });
 
-    const loan = await prisma.bookLoan.findUnique({ where: { id: parsed.data.loanId } });
+    const schoolId = await resolveSchoolId(session);
+    if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 409 });
+    const loan = await prisma.bookLoan.findFirst({ where: { id: parsed.data.loanId, schoolId } });
     if (!loan || loan.returnedAt) {
       return NextResponse.json({ error: "Loan not found or already returned" }, { status: 400 });
     }
@@ -169,8 +178,14 @@ export async function POST(req: Request) {
     const parsed = LoanSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: "Invalid loan data" }, { status: 400 });
 
-    const book = await prisma.libraryBook.findUnique({ where: { id: parsed.data.bookId } });
-    if (!book || book.available < 1) {
+    const schoolId = await resolveSchoolId(session);
+    if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 409 });
+    const [book, student] = await Promise.all([
+      prisma.libraryBook.findFirst({ where: { id: parsed.data.bookId, schoolId } }),
+      prisma.student.findFirst({ where: { id: parsed.data.studentId, schoolId } }),
+    ]);
+    if (!book || !student) return NextResponse.json({ error: "Book/student is outside your school" }, { status: 403 });
+    if (book.available < 1) {
       return NextResponse.json({ error: "No copies available" }, { status: 400 });
     }
 

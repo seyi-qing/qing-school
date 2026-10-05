@@ -18,9 +18,11 @@ const MarkSchema = z.object({
   notifyParents: z.boolean().optional().default(true),
 });
 
-async function getCurrentTerm() {
-  const term = await prisma.term.findFirst({ where: { isCurrent: true } });
-  if (!term) throw new Error("No current term is set. An admin must set one in Admin Settings.");
+async function getCurrentTerm(schoolId: string) {
+  const term = await prisma.term.findFirst({
+    where: { schoolId, isCurrent: true },
+  });
+  if (!term) throw new Error("No current term is set for this school. An admin must set one in Admin Settings.");
   return term;
 }
 
@@ -45,7 +47,7 @@ export async function POST(req: Request) {
   if (schoolId && marks.length) {
     const ids = marks.map((m) => m.studentId);
     const students = await prisma.student.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, schoolId },
       select: { id: true, schoolId: true },
     });
 
@@ -78,7 +80,8 @@ export async function POST(req: Request) {
     }
   }
 
-  const term = await getCurrentTerm();
+  if (!schoolId) return NextResponse.json({ error: "School context required." }, { status: 409 });
+  const term = await getCurrentTerm(schoolId);
   const day = new Date(date);
 
   await Promise.all(
@@ -103,7 +106,7 @@ export async function POST(req: Request) {
     const absentIds = marks.filter((m) => m.status === "ABSENT").map((m) => m.studentId);
     if (absentIds.length > 0) {
       const students = await prisma.student.findMany({
-        where: { id: { in: absentIds } },
+        where: { id: { in: absentIds }, schoolId },
         select: {
           id: true,
           firstName: true,
