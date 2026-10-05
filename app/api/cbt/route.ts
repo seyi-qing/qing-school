@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 
 const ExamSchema = z.object({
   title: z.string().min(1).max(200),
@@ -72,6 +73,11 @@ export async function GET(req: Request) {
     });
     if (!exam) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+    const schoolId = await resolveSchoolId(session);
+    if (schoolId && exam.schoolId && exam.schoolId !== schoolId) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     const questions = exam.questions.map((q) => {
       const base = {
         id: q.id,
@@ -102,8 +108,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const pendingOnly = url.searchParams.get("pending") === "1";
+    const schoolIdAtt = await resolveSchoolId(session);
     const attempts = await prisma.cbtAttempt.findMany({
-      where: pendingOnly ? { needsGrading: true } : undefined,
+      where: {
+        ...(pendingOnly ? { needsGrading: true } : {}),
+        ...(schoolIdAtt ? { exam: { schoolId: schoolIdAtt } } : {}),
+      },
       include: {
         student: { select: { firstName: true, lastName: true, admissionNumber: true } },
         exam: { select: { title: true } },
@@ -128,7 +138,12 @@ export async function GET(req: Request) {
     });
   }
 
-  const exams = await prisma.cbtExam.findMany({ orderBy: { createdAt: "desc" }, take: 50 });
+  const schoolIdList = await resolveSchoolId(session);
+  const exams = await prisma.cbtExam.findMany({
+    where: schoolWhere(schoolIdList),
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
   return NextResponse.json({ exams });
 }
 
@@ -308,6 +323,10 @@ export async function POST(req: Request) {
     }
     const exam = await prisma.cbtExam.findUnique({ where: { id: body.toggleExamId } });
     if (!exam) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const schoolIdToggle = await resolveSchoolId(session);
+    if (schoolIdToggle && exam.schoolId && exam.schoolId !== schoolIdToggle) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const updated = await prisma.cbtExam.update({
       where: { id: exam.id },
       data: { isOpen: !exam.isOpen },
@@ -321,8 +340,10 @@ export async function POST(req: Request) {
   const parsed = ExamSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid exam" }, { status: 400 });
 
+  const schoolIdExam = await resolveSchoolId(session);
   const exam = await prisma.cbtExam.create({
     data: {
+      schoolId: schoolIdExam ?? undefined,
       title: parsed.data.title,
       durationMinutes: parsed.data.durationMinutes,
       armId: parsed.data.armId || null,
