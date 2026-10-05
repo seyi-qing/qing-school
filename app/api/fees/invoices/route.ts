@@ -35,8 +35,8 @@ export async function POST(req: Request) {
     );
   }
 
-  const total = feeItems.reduce((sum, f) => sum + f.amount, 0);
-  const lineItems = feeItems.map((f) => ({ name: f.name, amount: f.amount }));
+  const total = feeItems.reduce((sum, f) => sum + Number(f.amount), 0);
+  const lineItems = feeItems.map((f) => ({ name: f.name, amount: Number(f.amount) }));
 
   let created = 0;
   for (const student of students) {
