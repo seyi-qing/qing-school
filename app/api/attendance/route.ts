@@ -78,7 +78,8 @@ export async function POST(req: Request) {
     }
   }
 
-  if (!schoolId) return NextResponse.json({ error: "School context required." }, { status: 409 });\n  const term = await getCurrentTerm(schoolId);
+  if (!schoolId) return NextResponse.json({ error: "School context required." }, { status: 409 });
+  const term = await getCurrentTerm(schoolId);
   const day = new Date(date);
 
   await Promise.all(
