@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
 
   const result = await finalizeOnlinePayment({
     reference,
-    amountNaira: verified.amountNaira || Number(pending.amount),
+    amountNaira: verified.amountNaira || pending.amount,
   });
 
   if (!result.ok) {

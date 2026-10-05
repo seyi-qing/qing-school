@@ -112,8 +112,7 @@ export async function POST(req: Request) {
 
   const { invoiceId, amount, method } = parsed.data;
   const reference = `MANUAL-${Date.now()}`;
-  if (!session.schoolId) return NextResponse.json({ error: "Authenticated school context is required." }, { status: 403 });
-  const payment = await applyManualPayment(invoiceId, amount, method, reference, session.userId, session.schoolId);
+  const payment = await applyManualPayment(invoiceId, amount, method, reference, session.userId);
 
   await logAudit({
     userId: session.userId,

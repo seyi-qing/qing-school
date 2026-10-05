@@ -12,8 +12,12 @@ export async function POST() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  if (!session.schoolId) {
+    return NextResponse.json({ error: "Authenticated school context is required." }, { status: 403 });
+  }
+
   const unpaid = await prisma.invoice.findMany({
-    where: { status: { in: ["UNPAID", "PARTIAL"] } },
+    where: { schoolId: session.schoolId, status: { in: ["UNPAID", "PARTIAL"] },
     include: { student: true },
     take: 100,
   });
@@ -28,7 +32,7 @@ export async function POST() {
       skipped++;
       continue;
     }
-    const bal = inv.totalAmount - inv.amountPaid;
+    const bal = Number(inv.totalAmount) - Number(inv.amountPaid);
     const body = `${SCHOOL.shortName}: Fee reminder for ${inv.student.firstName}. Balance ${formatNaira(bal)}. Please pay at the office or online portal.`;
     const result = await sendSms({ to: phone, body });
     if (result.ok) sent++;
