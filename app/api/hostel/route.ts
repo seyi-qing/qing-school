@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 
 const RoomSchema = z.object({
   name: z.string().min(1).max(80),
@@ -29,7 +30,9 @@ export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const schoolId = await resolveSchoolId(session);
   const rooms = await prisma.hostelRoom.findMany({
+    where: schoolWhere(schoolId),
     include: {
       allocations: {
         where: { status: "ACTIVE" },
@@ -181,8 +184,10 @@ export async function POST(req: Request) {
   const parsed = RoomSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid room data" }, { status: 400 });
 
+  const schoolId = await resolveSchoolId(session);
   const room = await prisma.hostelRoom.create({
     data: {
+      schoolId: schoolId ?? undefined,
       name: parsed.data.name.trim(),
       block: parsed.data.block?.trim() || null,
       capacity: parsed.data.capacity,
