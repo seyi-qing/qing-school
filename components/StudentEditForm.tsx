@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useToast } from "@/components/ui/Toast";
 
 type ArmOption = { id: string; label: string };
 
@@ -24,6 +25,7 @@ type Props = {
 
 export function StudentEditForm({ studentId, arms, initial }: Props) {
   const router = useRouter();
+  const { toast } = useToast();
   const [form, setForm] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,10 +64,13 @@ export function StudentEditForm({ studentId, arms, initial }: Props) {
     setSaving(false);
 
     if (!res.ok) {
-      setError(data.error ?? "Could not save changes.");
+      const msg = data.error ?? "Could not save changes.";
+      setError(msg);
+      toast(msg, "error");
       return;
     }
     setOk(true);
+    toast("Student updated.", "success");
     router.refresh();
   }
 
