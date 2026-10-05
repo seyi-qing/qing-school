@@ -69,7 +69,8 @@ model User {
   passwordHash        String
   role                Role
   isActive            Boolean  @default(true)
-  mustChangePassword  Boolean  @default(false)\n  sessionVersion      Int      @default(0)\n  failedLoginCount    Int      @default(0)\n  lockedUntil         DateTime?
+  mustChangePassword  Boolean  @default(false)
+  sessionVersion      Int      @default(0)\n  failedLoginCount    Int      @default(0)\n  lockedUntil         DateTime?
   schoolId            String?
   school              School?  @relation(fields: [schoolId], references: [id])
   createdAt           DateTime @default(now())
