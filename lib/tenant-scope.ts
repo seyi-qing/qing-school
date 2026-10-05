@@ -1,30 +1,53 @@
 /**
  * Tenant scoping helpers — use on every list/write for school data.
- * PLATFORM_ADMIN may pass schoolId null (sees all). School users always scoped.
- * After backfillSchoolIds(kms), no null schoolId rows remain on tenant tables.
+ *
+ * PLATFORM_ADMIN:
+ *   - On /platform: use allowGlobal for aggregate stats.
+ *   - On school ops: kms_active_school cookie (defaults to KMS).
+ * School users: always scoped to session.schoolId.
  */
+import { cookies } from "next/headers";
 import type { SessionPayload } from "@/lib/auth";
 import { ensureDefaultSchool, backfillSchoolIds } from "@/lib/tenant";
 
+export const ACTIVE_SCHOOL_COOKIE = "kms_active_school";
+
+export async function getActiveSchoolIdFromCookie(): Promise<string | null> {
+  const v = cookies().get(ACTIVE_SCHOOL_COOKIE)?.value;
+  return v && v.length > 10 ? v : null;
+}
+
 export async function resolveSchoolId(
-  session: SessionPayload | null
+  session: SessionPayload | null,
+  opts?: { allowGlobal?: boolean }
 ): Promise<string | null> {
   if (!session) return null;
-  if (session.role === "PLATFORM_ADMIN") return null;
+
+  if (session.role === "PLATFORM_ADMIN") {
+    if (opts?.allowGlobal) return null;
+    const active = await getActiveSchoolIdFromCookie();
+    if (active) return active;
+    const kms = await ensureDefaultSchool();
+    return kms.id;
+  }
+
   if (session.schoolId) return session.schoolId;
   const school = await ensureDefaultSchool();
   return school.id;
 }
 
-/**
- * Prisma where fragment for school-owned rows.
- * Strict: only this schoolId. Null rows must be backfilled to KMS first.
- */
 export function schoolWhere(
   schoolId: string | null | undefined
 ): Record<string, unknown> {
   if (!schoolId) return {};
   return { schoolId };
+}
+
+export function omitClientSchoolId<T extends Record<string, unknown>>(
+  body: T
+): Omit<T, "schoolId"> {
+  const { schoolId: _drop, ...rest } = body;
+  return rest as Omit<T, "schoolId">;
 }
 
 export async function assertUnderStudentCap(
@@ -90,8 +113,19 @@ export async function resolveSchoolIdFromRequest(req: Request): Promise<string> 
   return school.id;
 }
 
-/** Explicit backfill to KMS — also invoked from ensureDefaultSchool. */
 export async function backfillKmsTenant(): Promise<Record<string, number>> {
   const school = await ensureDefaultSchool();
   return backfillSchoolIds(school.id);
+}
+
+export async function isSchoolSuspended(schoolId: string): Promise<boolean> {
+  const { prisma } = await import("@/lib/db");
+  const school = await prisma.school.findUnique({
+    where: { id: schoolId },
+    select: { isActive: true, subscriptionStatus: true },
+  });
+  if (!school) return true;
+  if (!school.isActive) return true;
+  const st = (school.subscriptionStatus || "").toUpperCase();
+  return st === "PAST_DUE" || st === "CANCELLED" || st === "SUSPENDED";
 }
