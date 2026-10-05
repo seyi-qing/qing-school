@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { homeRouteForRole } from "@/lib/permissions";
 import Link from "next/link";
 
-const ALLOWED_ROLES = ["ADMIN", "TEACHER", "IT"];
+const ALLOWED_ROLES = ["PLATFORM_ADMIN", "ADMIN", "TEACHER", "IT"];
 
 export default async function AttendancePage({
   searchParams,
