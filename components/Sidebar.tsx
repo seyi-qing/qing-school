@@ -14,6 +14,11 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "ACCOUNTANT"] },
   { href: "/portal/student", label: "My Portal", roles: ["STUDENT"] },
   { href: "/portal/parent", label: "Family dashboard", roles: ["PARENT"] },
+  {
+    href: "/account/password",
+    label: "Change password",
+    roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "ACCOUNTANT", "TEACHER", "STUDENT", "PARENT"],
+  },
   { href: "/notices", label: "School notices", roles: ["PARENT"] },
   { href: "/result-checker", label: "Result checker", roles: ["PARENT"] },
   { href: "/portal/teacher", label: "Teacher Portal", roles: ["TEACHER"] },
@@ -29,71 +34,39 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/hostel", label: "Hostel", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL"] },
   { href: "/transport", label: "Transport", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "ACCOUNTANT"] },
   { href: "/attendance", label: "Attendance", roles: ["ADMIN", "TEACHER", "IT"] },
-  { href: "/exams", label: "Exams & Results", roles: ["ADMIN", "TEACHER", "PRINCIPAL"] },
-  { href: "/fees", label: "Fees & Accounts", roles: ["ADMIN", "ACCOUNTANT", "SECRETARY"] },
-  { href: "/fees/structure", label: "Fee structure", roles: ["ADMIN", "ACCOUNTANT"] },
+  { href: "/exams", label: "Scores / CA", roles: ["ADMIN", "TEACHER", "IT", "PRINCIPAL"] },
+  { href: "/fees", label: "Fees", roles: ["ADMIN", "ACCOUNTANT", "SECRETARY", "IT"] },
   { href: "/expenses", label: "Expenses", roles: ["ADMIN", "ACCOUNTANT"] },
-  { href: "/notices", label: "Communication", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL"] },
-  { href: "/cms", label: "Website CMS", roles: ["ADMIN", "IT", "SECRETARY"] },
-  { href: "/reports", label: "Reports", roles: ["ADMIN", "IT", "PRINCIPAL", "ACCOUNTANT", "SECRETARY"] },
-  { href: "/settings/report-template", label: "Report designer", roles: ["ADMIN", "IT", "PRINCIPAL"] },
-  { href: "/settings/security", label: "Security", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "TEACHER", "ACCOUNTANT"] },
-  { href: "/settings/ops", label: "Ops / SMS / Backup", roles: ["ADMIN", "IT"] },
-  { href: "/settings/audit", label: "Audit trail", roles: ["ADMIN", "IT"] },
-  { href: "/settings", label: "Admin Settings", roles: ["ADMIN", "IT"] },
-  { href: "/settings/go-live", label: "Go-live checklist", roles: ["ADMIN", "IT"] },
-  { href: "/platform", label: "Platform (SaaS)", roles: ["ADMIN", "IT"] },
-  { href: "/onboarding", label: "Onboard school", roles: ["ADMIN", "IT"] },
+  { href: "/notices", label: "Notices", roles: ["ADMIN", "IT", "SECRETARY", "PRINCIPAL"] },
+  { href: "/cms", label: "Website CMS", roles: ["ADMIN", "IT"] },
+  { href: "/reports", label: "Reports", roles: ["ADMIN", "PRINCIPAL", "IT"] },
+  { href: "/settings", label: "Settings", roles: ["ADMIN", "IT", "PRINCIPAL"] },
+  { href: "/platform", label: "Platform", roles: ["PLATFORM_ADMIN"] },
 ];
 
-export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
+export function Sidebar({ role }: { role: Role }) {
   const pathname = usePathname();
   const router = useRouter();
-  const visible = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role));
+  const items = NAV_ITEMS.filter((i) => !i.roles || i.roles.includes(role));
 
-  async function logout() {
+  async function signOut() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
     router.refresh();
   }
 
   return (
-    <aside className="w-60 max-w-full h-full max-h-dvh bg-navy text-paper flex flex-col no-print">
-      <div className="px-5 py-4 border-b border-paper/10 flex items-start justify-between gap-2 shrink-0">
-        <div className="flex items-center gap-2.5 min-w-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="KMS" className="w-10 h-10 object-contain shrink-0" />
-          <div className="min-w-0">
-            <p className="font-serif text-lg leading-tight">KMS</p>
-            <p className="text-[11px] text-paper/50 truncate">
-              {role.charAt(0) + role.slice(1).toLowerCase()} Portal
-            </p>
-          </div>
-        </div>
-        {onNavigate && (
-          <button
-            type="button"
-            onClick={onNavigate}
-            className="lg:hidden text-paper/70 hover:text-gold text-2xl leading-none px-1"
-            aria-label="Close menu"
-          >
-            &times;
-          </button>
-        )}
-      </div>
-
-      <nav className="flex-1 min-h-0 py-2 overflow-y-auto overscroll-contain">
-        {visible.map((item) => {
+    <aside className="w-56 shrink-0 border-r border-line bg-white min-h-screen p-4 hidden md:block">
+      <p className="font-serif text-lg text-navy mb-4">KMS</p>
+      <nav className="space-y-0.5">
+        {items.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link
-              key={`${item.href}-${item.label}`}
+              key={item.href + item.label}
               href={item.href}
-              onClick={onNavigate}
-              className={`block px-5 py-2.5 text-sm border-l-2 ${
-                active
-                  ? "border-gold bg-white/5 text-gold"
-                  : "border-transparent text-paper/75 hover:bg-white/5 hover:text-paper"
+              className={`block text-sm px-3 py-2 rounded ${
+                active ? "bg-navy text-paper" : "text-ink/80 hover:bg-paper"
               }`}
             >
               {item.label}
@@ -101,16 +74,13 @@ export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => v
           );
         })}
       </nav>
-
-      <div className="shrink-0 p-4 border-t border-paper/10 bg-navy">
-        <button
-          type="button"
-          onClick={logout}
-          className="w-full border border-paper/30 text-paper text-sm py-2.5 hover:border-gold hover:text-gold transition-colors"
-        >
-          Sign out
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={signOut}
+        className="mt-6 text-xs text-ink/50 underline hover:text-navy"
+      >
+        Sign out
+      </button>
     </aside>
   );
 }
