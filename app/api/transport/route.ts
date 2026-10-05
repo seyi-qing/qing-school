@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 
 const RouteSchema = z.object({
   name: z.string().min(1).max(120),
@@ -29,7 +30,9 @@ export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const schoolId = await resolveSchoolId(session);
   const routes = await prisma.transportRoute.findMany({
+    where: schoolWhere(schoolId),
     include: {
       enrollments: {
         where: { status: "ACTIVE" },
@@ -104,9 +107,7 @@ export async function DELETE(req: Request) {
   });
   if (activeRiders > 0) {
     return NextResponse.json(
-      {
-        error: `Cannot delete: ${activeRiders} active rider(s). Remove them first.`,
-      },
+      { error: `Cannot delete: ${activeRiders} active rider(s). Remove them first.` },
       { status: 409 }
     );
   }
@@ -210,8 +211,10 @@ export async function POST(req: Request) {
   const parsed = RouteSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid route data" }, { status: 400 });
 
+  const schoolId = await resolveSchoolId(session);
   const route = await prisma.transportRoute.create({
     data: {
+      schoolId: schoolId ?? undefined,
       name: parsed.data.name.trim(),
       vehicle: parsed.data.vehicle?.trim() || null,
       driverName: parsed.data.driverName?.trim() || null,
