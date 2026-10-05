@@ -5,6 +5,7 @@ import { getSession, hashPassword } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 import { validatePassword, passwordPolicyHint } from "@/lib/password-policy";
+import { resolveSchoolId, schoolWhere, assertStaffInTenant } from "@/lib/tenant-scope";
 
 const CreateStaffSchema = z.object({
   firstName: z.string().min(1),
@@ -40,7 +41,9 @@ export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const schoolId = await resolveSchoolId(session);
   const staff = await prisma.staff.findMany({
+    where: schoolWhere(schoolId),
     include: { user: { select: { email: true, role: true, isActive: true } } },
     orderBy: [{ lastName: "asc" }],
   });
@@ -63,6 +66,9 @@ export async function PATCH(req: Request) {
     }
     const staff = await prisma.staff.findUnique({ where: { id: body.staffId } });
     if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
+    const schoolIdReset = await resolveSchoolId(session);
+    const g = await assertStaffInTenant(staff.id, schoolIdReset);
+    if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status });
     const passwordHash = await hashPassword(newPassword);
     await prisma.user.update({
       where: { id: staff.userId },
@@ -84,6 +90,9 @@ export async function PATCH(req: Request) {
 
   const staff = await prisma.staff.findUnique({ where: { id: parsed.data.id } });
   if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
+  const schoolIdPatch = await resolveSchoolId(session);
+  const guard = await assertStaffInTenant(staff.id, schoolIdPatch);
+  if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const data = parsed.data;
   const updated = await prisma.$transaction(async (tx) => {
@@ -143,12 +152,14 @@ export async function POST(req: Request) {
 
   const defaultPassword = "Kms@" + Math.random().toString(36).slice(2, 8) + "A1!";
   const passwordHash = await hashPassword(defaultPassword);
+  const schoolIdCreate = await resolveSchoolId(session);
   const user = await prisma.user.create({
-    data: { email: data.email, passwordHash, role: data.role },
+    data: { email: data.email, passwordHash, role: data.role, schoolId: schoolIdCreate ?? undefined },
   });
 
   const staff = await prisma.staff.create({
     data: {
+      schoolId: schoolIdCreate ?? undefined,
       staffId: await generateStaffId(),
       userId: user.id,
       firstName: data.firstName,
