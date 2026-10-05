@@ -29,11 +29,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
   }
 
+  const mustChange = Boolean(user.mustChangePassword);
+
   await createSession({
     userId: user.id,
     role: user.role,
     email: user.email,
     schoolId: user.schoolId ?? null,
+    mustChangePassword: mustChange,
   });
   await logAudit({
     userId: user.id,
@@ -43,7 +46,14 @@ export async function POST(req: Request) {
     details: { schoolId: user.schoolId },
   });
 
+  if (mustChange) {
+    return NextResponse.json({
+      redirectTo: "/account/password",
+      mustChangePassword: true,
+    });
+  }
+
   const redirectTo =
     user.role === "PLATFORM_ADMIN" ? "/platform" : homeRouteForRole(user.role);
-  return NextResponse.json({ redirectTo });
+  return NextResponse.json({ redirectTo, mustChangePassword: false });
 }

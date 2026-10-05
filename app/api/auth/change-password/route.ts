@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { getSession, hashPassword, verifyPassword } from "@/lib/auth";
+import { getSession, hashPassword, verifyPassword, createSession } from "@/lib/auth";
 import { validatePassword } from "@/lib/password-policy";
 import { logAudit } from "@/lib/audit";
 
@@ -34,13 +34,24 @@ export async function POST(req: Request) {
   }
 
   if (parsed.data.currentPassword === parsed.data.newPassword) {
-    return NextResponse.json({ error: "New password must be different from the current one." }, { status: 400 });
+    return NextResponse.json(
+      { error: "New password must be different from the current one." },
+      { status: 400 }
+    );
   }
 
   const passwordHash = await hashPassword(parsed.data.newPassword);
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash },
+    data: { passwordHash, mustChangePassword: false },
+  });
+
+  await createSession({
+    userId: user.id,
+    role: user.role,
+    email: user.email,
+    schoolId: user.schoolId ?? null,
+    mustChangePassword: false,
   });
 
   await logAudit({
@@ -50,5 +61,9 @@ export async function POST(req: Request) {
     entityId: user.id,
   });
 
-  return NextResponse.json({ ok: true, message: "Password updated." });
+  return NextResponse.json({
+    ok: true,
+    message: "Password updated.",
+    redirectTo: user.role === "PLATFORM_ADMIN" ? "/platform" : undefined,
+  });
 }
