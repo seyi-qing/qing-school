@@ -112,7 +112,7 @@ export async function DELETE(req: Request) {
     );
   }
 
-  await prisma.hostelRoom.delete({ where: { id } });
+  await prisma.hostelRoom.delete({ where: { id: room.id } });
   await logAudit({
     userId: session.userId,
     action: "DELETE_HOSTEL_ROOM",
@@ -152,13 +152,13 @@ export async function POST(req: Request) {
       where: { id: parsed.data.roomId },
       include: { allocations: { where: { status: "ACTIVE" } } },
     });
-    if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
+    if (!room || !student) return NextResponse.json({ error: "Room/student is outside your school" }, { status: 403 });
     if (room.allocations.length >= room.capacity) {
       return NextResponse.json({ error: "Room is full" }, { status: 400 });
     }
 
     const existing = await prisma.hostelAllocation.findFirst({
-      where: { studentId: parsed.data.studentId, status: "ACTIVE" },
+      where: { studentId: student.id, schoolId, status: "ACTIVE" },
     });
     if (existing) {
       return NextResponse.json({ error: "Student already has an active bed" }, { status: 400 });
