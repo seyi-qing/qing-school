@@ -41,7 +41,7 @@ async function applyManualPayment(
     },
   });
 
-  const newPaid = invoice.amountPaid + amount;
+  const newPaid = Number(invoice.amountPaid) + amount;
   const status =
     newPaid >= invoice.totalAmount ? "PAID" : newPaid > 0 ? "PARTIAL" : "UNPAID";
 
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
     }
 
-    const remaining = invoice.totalAmount - invoice.amountPaid;
+    const remaining = Number(invoice.totalAmount) - Number(invoice.amountPaid);
     if (amount > remaining + 0.01) {
       return NextResponse.json({ error: "Amount exceeds balance." }, { status: 400 });
     }
