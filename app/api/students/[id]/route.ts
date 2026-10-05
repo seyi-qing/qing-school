@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
+import { resolveSchoolId, assertStudentInTenant } from "@/lib/tenant-scope";
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const session = await getSession();
@@ -20,6 +21,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   });
 
   if (!student) return NextResponse.json({ error: "Student not found" }, { status: 404 });
+
+  const schoolId = await resolveSchoolId(session);
+  if (schoolId && student.schoolId && student.schoolId !== schoolId) {
+    return NextResponse.json({ error: "Student not found" }, { status: 404 });
+  }
 
   if (session.role === "STUDENT") {
     const owns = await prisma.student.findFirst({ where: { id: params.id, userId: session.userId } });
@@ -40,6 +46,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!session || !can(session.role, "MANAGE_STUDENTS")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  const schoolId = await resolveSchoolId(session);
+  const guard = await assertStudentInTenant(params.id, schoolId);
+  if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const body = await req.json().catch(() => ({}));
   const allowedFields = [
@@ -92,6 +102,10 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
       { status: 403 }
     );
   }
+
+  const schoolIdDel = await resolveSchoolId(session);
+  const guardDel = await assertStudentInTenant(params.id, schoolIdDel);
+  if (!guardDel.ok) return NextResponse.json({ error: guardDel.error }, { status: guardDel.status });
 
   const body = await req.json().catch(() => ({}));
   const confirmAdmissionNumber =
