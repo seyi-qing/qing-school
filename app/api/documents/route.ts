@@ -19,8 +19,18 @@ export async function GET(req: Request) {
   const studentId = new URL(req.url).searchParams.get("studentId");
   if (!studentId) return NextResponse.json({ error: "studentId required" }, { status: 400 });
 
+  const schoolId = await resolveSchoolId(session);
+  if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 409 });
+
+  const student = await prisma.student.findFirst({
+    where: { id: studentId, schoolId },
+  });
+  if (!student) return NextResponse.json({ error: "Student not found" }, { status: 404 });
+
   if (session.role === "STUDENT") {
-    const me = await prisma.student.findUnique({ where: { userId: session.userId } });
+    const me = await prisma.student.findFirst({
+      where: { userId: session.userId, schoolId },
+    });
     if (!me || me.id !== studentId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -34,7 +44,7 @@ export async function GET(req: Request) {
   }
 
   const documents = await prisma.document.findMany({
-    where: { studentId },
+    where: { studentId, schoolId },
     orderBy: { uploadedAt: "desc" },
   });
   return NextResponse.json({ documents });
