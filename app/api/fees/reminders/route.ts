@@ -17,7 +17,7 @@ export async function POST() {
   }
 
   const unpaid = await prisma.invoice.findMany({
-    where: { schoolId: session.schoolId, status: { in: ["UNPAID", "PARTIAL"] },
+    where: { schoolId: session.schoolId, status: { in: ["UNPAID", "PARTIAL"] } },
     include: { student: true },
     take: 100,
   });
