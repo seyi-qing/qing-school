@@ -46,7 +46,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid data" }, { status: 400 });
   }
 
-  const schoolId = await resolveSchoolId(session);\n  if (!schoolId) return NextResponse.json({ error: "School context required." }, { status: 409 });\n  const [arm, term] = await Promise.all([\n    prisma.arm.findFirst({ where: { id: parsed.data.armId, schoolId } }),\n    prisma.term.findFirst({ where: { id: parsed.data.termId, schoolId } }),\n  ]);\n  if (!arm || !term) return NextResponse.json({ error: "Class/term is outside your school." }, { status: 403 });\n  const item = await prisma.feeItem.create({ data: { ...parsed.data, schoolId } });
+  const schoolId = await resolveSchoolId(session);
+  if (!schoolId) return NextResponse.json({ error: "School context required." }, { status: 409 });
+  const [arm, term] = await Promise.all([
+    prisma.arm.findFirst({ where: { id: parsed.data.armId, schoolId } }),
+    prisma.term.findFirst({ where: { id: parsed.data.termId, schoolId } }),
+  ]);
+  if (!arm || !term) return NextResponse.json({ error: "Class/term is outside your school." }, { status: 403 });
+  const item = await prisma.feeItem.create({ data: { ...parsed.data, schoolId } });
 
   await logAudit({ userId: session.userId, action: "CREATE_FEE_ITEM", entity: "FeeItem", entityId: item.id });
 
