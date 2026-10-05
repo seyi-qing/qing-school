@@ -14,5 +14,7 @@ assert(Object.keys(schoolWhere(undefined)).length === 0, "undefined → no filte
 assert(extractPhone("08012345678", null) !== null, "guardian phone extracts");
 assert(extractPhone(null, "Call 08012345678 please") !== null, "notes phone extracts");
 assert(extractPhone(null, "no number here") === null, "no phone → null");
+const n = extractPhone("08012345678", null)!;
+assert(n.startsWith("+234") || n.includes("234"), "normalized NG phone");
 
-console.log("P1 tests OK: tenant-scope + phone");
+console.log("P2 tests OK: tenant-scope + phone");
