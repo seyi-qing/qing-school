@@ -62,7 +62,9 @@ export async function PATCH(req: Request) {
     );
   }
 
-  const schoolId = await resolveSchoolId(session);\n  if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 409 });\n  const existing = await prisma.transportRoute.findFirst({ where: { id: parsed.data.id, schoolId } });
+  const schoolId = await resolveSchoolId(session);
+  if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 409 });
+  const existing = await prisma.transportRoute.findFirst({ where: { id: parsed.data.id, schoolId } });
   if (!existing) return NextResponse.json({ error: "Route not found" }, { status: 404 });
 
   const route = await prisma.transportRoute.update({
