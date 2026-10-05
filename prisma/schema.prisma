@@ -39,6 +39,11 @@ model School {
   isActive        Boolean  @default(true)
   isDemo          Boolean  @default(false)
   maxStudents     Int      @default(500)
+  billingEmail              String?
+  paystackCustomerCode      String?
+  paystackSubscriptionCode  String?
+  subscriptionStatus        String   @default("NONE")
+  planRenewsAt              DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   users           User[]
@@ -275,7 +280,7 @@ model HostelRoom {
   school      School?            @relation(fields: [schoolId], references: [id])
   name        String
   block       String?
-  capacity    Int                @default(4)
+  capacity   Int                @default(4)
   gender      String?
   allocations HostelAllocation[]
   createdAt   DateTime           @default(now())
