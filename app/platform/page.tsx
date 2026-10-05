@@ -5,6 +5,9 @@ import Link from "next/link";
 import { ensureDefaultSchool, backfillSchoolIds } from "@/lib/tenant";
 import { PlatformBillingForm } from "@/components/PlatformBillingForm";
 import { isSubscriptionLive, PLAN_LIMITS } from "@/lib/integrations/subscriptions";
+import { PortalShell } from "@/components/PortalShell";
+import { WorkAsSchoolButton } from "@/components/WorkAsSchoolButton";
+import { getActiveSchoolIdFromCookie } from "@/lib/tenant-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -25,24 +28,40 @@ export default async function PlatformPage() {
   });
 
   const live = isSubscriptionLive();
+  const activeId = await getActiveSchoolIdFromCookie();
+  const activeSchool = activeId
+    ? schools.find((s) => s.id === activeId)
+    : defaultSchool;
 
   return (
-    <div className="min-h-screen bg-paper">
-      <header className="border-b border-line bg-navy text-paper px-4 sm:px-8 py-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-paper/50">SaaS control plane</p>
-          <h1 className="font-serif text-xl">Platform · Schools & Billing</h1>
-        </div>
-        <div className="flex gap-3 text-sm">
-          <Link href="/onboarding" className="border border-paper/40 px-3 py-1.5 hover:border-gold">
+    <PortalShell
+      role={session.role}
+      title="Platform · Schools & Billing"
+      subtitle="SaaS control plane — all tenants"
+      actions={
+        <div className="flex flex-wrap gap-2 text-sm">
+          <Link href="/onboarding" className="border border-navy text-navy px-3 py-1.5">
             Onboard school
           </Link>
-          <Link href="/dashboard" className="border border-paper/40 px-3 py-1.5 hover:border-gold">
+          <Link href="/dashboard" className="border border-navy text-navy px-3 py-1.5">
             School dashboard
           </Link>
         </div>
-      </header>
-      <main className="max-w-5xl mx-auto px-4 sm:px-8 py-8 space-y-6">
+      }
+    >
+      <div className="space-y-6">
+        {session.role === "PLATFORM_ADMIN" && (
+          <p className="text-sm text-ink/60 ledger-block">
+            Working as:{" "}
+            <strong className="text-navy">
+              {activeSchool?.name ?? "Kayvlop Magnificent School"}
+            </strong>
+            <span className="text-ink/40">
+              {" "}({activeSchool?.slug ?? "kms"}). Use &quot;Work as this school&quot; before Students / Fees.
+            </span>
+          </p>
+        )}
+
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <div className="ledger-block">
             <p className="text-xs text-ink/50 uppercase">Schools</p>
@@ -50,7 +69,9 @@ export default async function PlatformPage() {
           </div>
           <div className="ledger-block">
             <p className="text-xs text-ink/50 uppercase">Active</p>
-            <p className="font-serif text-2xl mt-1">{schools.filter((s) => s.isActive).length}</p>
+            <p className="font-serif text-2xl mt-1">
+              {schools.filter((s) => s.isActive).length}
+            </p>
           </div>
           <div className="ledger-block">
             <p className="text-xs text-ink/50 uppercase">Students</p>
@@ -87,6 +108,7 @@ export default async function PlatformPage() {
                 <th>Users</th>
                 <th>Students</th>
                 <th>Status</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -106,11 +128,16 @@ export default async function PlatformPage() {
                     {s.isActive ? "Active" : "Suspended"}
                     {s.isDemo ? " · Demo" : ""}
                   </td>
+                  <td>
+                    {session.role === "PLATFORM_ADMIN" && (
+                      <WorkAsSchoolButton schoolId={s.id} />
+                    )}
+                  </td>
                 </tr>
               ))}
               {schools.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="text-center text-ink/50 py-8">
+                  <td colSpan={9} className="text-center text-ink/50 py-8">
                     No schools yet. Use Onboard school.
                   </td>
                 </tr>
@@ -129,24 +156,20 @@ export default async function PlatformPage() {
         />
 
         <section className="ledger-block text-sm space-y-2">
-          <h2 className="font-serif text-lg">Billing setup (production)</h2>
+          <h2 className="font-serif text-lg">Billing setup (your side)</h2>
           <ol className="list-decimal pl-5 space-y-1 text-ink/70">
-            <li>Create 3 Plans in Paystack (STARTER / PRO / ENTERPRISE) with monthly amounts.</li>
+            <li>Create 3 Plans in Paystack (STARTER / PRO / ENTERPRISE).</li>
+            <li>Env: PAYSTACK_SECRET_KEY, PAYSTACK_PLAN_*, NEXT_PUBLIC_APP_URL, TERMII_*.</li>
             <li>
-              Set env: PAYSTACK_SECRET_KEY, PAYSTACK_PLAN_STARTER, PAYSTACK_PLAN_PRO,
-              PAYSTACK_PLAN_ENTERPRISE, NEXT_PUBLIC_APP_URL.
+              Webhook: <code className="text-xs">/api/webhooks/paystack</code>
             </li>
             <li>
-              Webhook URL: <code className="text-xs">/api/webhooks/paystack</code>
+              Caps: STARTER {PLAN_LIMITS.STARTER}, PRO {PLAN_LIMITS.PRO}, ENTERPRISE{" "}
+              {PLAN_LIMITS.ENTERPRISE}.
             </li>
-            <li>
-              Limits: STARTER {PLAN_LIMITS.STARTER}, PRO {PLAN_LIMITS.PRO}, ENTERPRISE{" "}
-              {PLAN_LIMITS.ENTERPRISE} students.
-            </li>
-            <li>Admissions blocked when school hits maxStudents.</li>
           </ol>
         </section>
-      </main>
-    </div>
+      </div>
+    </PortalShell>
   );
 }
