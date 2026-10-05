@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useToast } from "@/components/ui/Toast";
 
 type Props = {
   studentId: string;
@@ -21,6 +22,7 @@ export function StudentLifecycleActions({
   hasPaidFees,
 }: Props) {
   const router = useRouter();
+  const { toast } = useToast();
   const [busy, setBusy] = useState<"withdraw" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showDelete, setShowDelete] = useState(false);
@@ -41,9 +43,12 @@ export function StudentLifecycleActions({
     const data = await res.json().catch(() => ({}));
     setBusy(null);
     if (!res.ok) {
-      setError(data.error ?? "Could not withdraw student.");
+      const msg = data.error ?? "Could not withdraw student.";
+      setError(msg);
+      toast(msg, "error");
       return;
     }
+    toast("Student withdrawn.", "success");
     router.refresh();
   }
 
@@ -58,9 +63,12 @@ export function StudentLifecycleActions({
     const data = await res.json().catch(() => ({}));
     setBusy(null);
     if (!res.ok) {
-      setError(data.error ?? "Could not reactivate.");
+      const msg = data.error ?? "Could not reactivate.";
+      setError(msg);
+      toast(msg, "error");
       return;
     }
+    toast("Student reactivated.", "success");
     router.refresh();
   }
 
@@ -82,9 +90,12 @@ export function StudentLifecycleActions({
     const data = await res.json().catch(() => ({}));
     setBusy(null);
     if (!res.ok) {
-      setError(data.error ?? "Could not delete student.");
+      const msg = data.error ?? "Could not delete student.";
+      setError(msg);
+      toast(msg, "error");
       return;
     }
+    toast("Student deleted permanently.", "success");
     router.push("/students");
     router.refresh();
   }
