@@ -81,7 +81,7 @@ export default async function ReportCardPage({ params }: { params: { id: string 
   const positionLabel = student.scores.length > 0 ? `Average ${average}` : "—";
 
   return (
-    <div className="max-w-3xl mx-auto p-6 sm:p-10 font-sans text-ink">
+    <div className="max-w-3xl mx-auto p-4 sm:p-10 font-sans text-ink">
       <div className="no-print mb-6 flex justify-between items-center gap-3">
         <a href={`/students/${student.id}`} className="text-sm text-navy underline">
           ← Back to student
@@ -106,7 +106,7 @@ export default async function ReportCardPage({ params }: { params: { id: string 
           </div>
         )}
 
-        <div className="p-5 sm:p-8">
+        <div className="p-4 sm:p-8">
           {has("studentInfo") && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm mb-6 border border-line p-3">
               <p>
@@ -126,39 +126,83 @@ export default async function ReportCardPage({ params }: { params: { id: string 
           )}
 
           {has("scoresTable") && (
-            <table className="w-full text-sm border-collapse mb-6">
-              <thead>
-                <tr style={{ background: headerBg, color: "#fff" }}>
-                  <th className="text-left py-2 px-2">Subject</th>
-                  <th className="text-right px-2">CA1</th>
-                  <th className="text-right px-2">CA2</th>
-                  <th className="text-right px-2">Exam</th>
-                  <th className="text-right px-2">Total</th>
-                  <th className="text-right px-2">Grade</th>
-                  <th className="text-left pl-3">Remark</th>
-                </tr>
-              </thead>
-              <tbody>
-                {student.scores.map((s) => (
-                  <tr key={s.id} className="border-b border-line">
-                    <td className="py-1.5 px-2">{s.armSubject.subject.name}</td>
-                    <td className="text-right px-2">{s.ca1}</td>
-                    <td className="text-right px-2">{s.ca2}</td>
-                    <td className="text-right px-2">{s.exam}</td>
-                    <td className="text-right px-2 font-medium">{s.total}</td>
-                    <td className="text-right px-2">{s.grade ?? "—"}</td>
-                    <td className="pl-3">{s.remark ?? "—"}</td>
-                  </tr>
-                ))}
+            <>
+              <div className="sm:hidden space-y-3 mb-6 print:hidden">
                 {student.scores.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="text-center text-ink/50 py-6">
-                      No scores entered for this student yet.
-                    </td>
-                  </tr>
+                  <p className="text-center text-ink/50 py-6 text-sm border border-dashed border-line">
+                    No scores entered for this student yet.
+                  </p>
                 )}
-              </tbody>
-            </table>
+                {student.scores.map((s) => (
+                  <div key={s.id} className="border border-line rounded-sm p-3 text-sm">
+                    <p className="font-medium text-navy mb-2">{s.armSubject.subject.name}</p>
+                    <div className="grid grid-cols-4 gap-2 text-center text-xs mb-2">
+                      <div>
+                        <p className="text-ink/50">CA1</p>
+                        <p className="font-medium">{s.ca1}</p>
+                      </div>
+                      <div>
+                        <p className="text-ink/50">CA2</p>
+                        <p className="font-medium">{s.ca2}</p>
+                      </div>
+                      <div>
+                        <p className="text-ink/50">Exam</p>
+                        <p className="font-medium">{s.exam}</p>
+                      </div>
+                      <div>
+                        <p className="text-ink/50">Total</p>
+                        <p className="font-medium">{s.total}</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between gap-2 border-t border-line pt-2 text-xs">
+                      <span>
+                        <span className="text-ink/50">Grade: </span>
+                        <strong>{s.grade ?? "—"}</strong>
+                      </span>
+                      <span className="text-right max-w-[60%]">
+                        <span className="text-ink/50">Remark: </span>
+                        {s.remark ?? "—"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden sm:block overflow-x-auto mb-6 print:block">
+                <table className="w-full text-sm border-collapse min-w-[520px]">
+                  <thead>
+                    <tr style={{ background: headerBg, color: "#fff" }}>
+                      <th className="text-left py-2 px-2">Subject</th>
+                      <th className="text-right px-2">CA1</th>
+                      <th className="text-right px-2">CA2</th>
+                      <th className="text-right px-2">Exam</th>
+                      <th className="text-right px-2">Total</th>
+                      <th className="text-right px-2">Grade</th>
+                      <th className="text-left pl-3">Remark</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {student.scores.map((s) => (
+                      <tr key={s.id} className="border-b border-line">
+                        <td className="py-1.5 px-2">{s.armSubject.subject.name}</td>
+                        <td className="text-right px-2">{s.ca1}</td>
+                        <td className="text-right px-2">{s.ca2}</td>
+                        <td className="text-right px-2">{s.exam}</td>
+                        <td className="text-right px-2 font-medium">{s.total}</td>
+                        <td className="text-right px-2">{s.grade ?? "—"}</td>
+                        <td className="pl-3">{s.remark ?? "—"}</td>
+                      </tr>
+                    ))}
+                    {student.scores.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="text-center text-ink/50 py-6">
+                          No scores entered for this student yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
 
           {has("attendance") && cfg.showAttendance !== false && (
