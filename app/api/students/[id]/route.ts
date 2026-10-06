@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 import { resolveSchoolId, assertStudentInTenant } from "@/lib/tenant-scope";
+import { toMoney } from "@/lib/money";
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const session = await getSession();
@@ -141,7 +142,10 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     );
   }
 
-  const paidTotal = student.invoices.reduce((s, inv) => s + (inv.amountPaid || 0), 0);
+  const paidTotal = student.invoices.reduce(
+    (s, inv) => s + toMoney(inv.amountPaid),
+    0
+  );
   if (paidTotal > 0 && !force) {
     return NextResponse.json(
       {

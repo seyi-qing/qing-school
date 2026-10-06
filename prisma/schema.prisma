@@ -188,7 +188,7 @@ model Staff {
   designation    String?
   qualification  String?
   phone          String?
-  monthlySalary  Decimal?       @db.Decimal(12, 2)
+  monthlySalary  Float?
   isActive       Boolean        @default(true)
   classesLed     Arm[]
   subjectsTaught ArmSubject[]
@@ -310,7 +310,7 @@ model TransportRoute {
   vehicle     String?
   driverName  String?
   driverPhone String?
-  feeAmount   Decimal               @default(0) @db.Decimal(12, 2)
+  feeAmount   Float                 @default(0)
   enrollments TransportEnrollment[]
   createdAt   DateTime              @default(now())
   @@index([schoolId])
@@ -491,7 +491,7 @@ model FeeItem {
   armId      String
   termId     String
   name       String
-  amount     Decimal  @db.Decimal(12, 2)
+  amount     Float
   compulsory Boolean  @default(true)
   createdAt  DateTime @default(now())
 }
@@ -503,8 +503,8 @@ model Invoice {
   term        Term      @relation(fields: [termId], references: [id], onDelete: Cascade)
   termId      String
   lineItems   String
-  totalAmount Decimal   @db.Decimal(12, 2)
-  amountPaid  Decimal   @default(0) @db.Decimal(12, 2)
+  totalAmount Float
+  amountPaid  Float     @default(0)
   status      String    @default("UNPAID")
   dueDate     DateTime?
   createdAt   DateTime  @default(now())
@@ -519,7 +519,7 @@ model Payment {
   invoiceId  String
   student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   studentId  String
-  amount     Decimal  @db.Decimal(12, 2)
+  amount     Float
   method     String
   reference  String   @unique
   status     String   @default("SUCCESS")
@@ -533,7 +533,7 @@ model ExpenseRecord {
   school      School?  @relation(fields: [schoolId], references: [id])
   category    String
   description String
-  amount      Decimal  @db.Decimal(12, 2)
+  amount      Float
   date        DateTime @default(now())
   recordedBy  String?
   @@index([schoolId])
@@ -544,9 +544,9 @@ model Payslip {
   staff       Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
   staffId     String
   month       String
-  gross       Decimal  @db.Decimal(12, 2)
-  deductions  Decimal  @default(0) @db.Decimal(12, 2)
-  net         Decimal  @db.Decimal(12, 2)
+  gross       Float
+  deductions  Float    @default(0)
+  net         Float
   generatedAt DateTime @default(now())
   @@unique([staffId, month])
 }
