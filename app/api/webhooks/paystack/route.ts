@@ -74,7 +74,9 @@ export async function POST(req: NextRequest) {
       name === "subscription.enable" ||
       name === "subscription.disable"
     ) {
-      await applySubscriptionWebhook(name, data as Record<string, unknown>);
+      await applySubscriptionWebhook(
+        data as Parameters<typeof applySubscriptionWebhook>[0]
+      );
       return NextResponse.json({ received: true, type: "subscription" });
     }
 
