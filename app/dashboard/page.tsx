@@ -2,7 +2,6 @@ import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { PortalShell, StatBlock } from "@/components/PortalShell";
 import { can, homeRouteForRole } from "@/lib/permissions";
-import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 import { formatNaira } from "@/lib/format";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -34,12 +33,30 @@ export default async function DashboardPage() {
     ]);
 
   const collected = invoices.reduce((sum, i) => sum + Number(i.amountPaid), 0);
-  const outstanding = invoices.reduce((sum, i) => sum + (Number(i.totalAmount) - Number(i.amountPaid)), 0);
+  const outstanding = invoices.reduce(
+    (sum, i) => sum + (Number(i.totalAmount) - Number(i.amountPaid)),
+    0
+  );
   const presentToday = todayAttendance.filter((a) => a.status === "PRESENT").length;
   const attendancePct =
     todayAttendance.length > 0 ? Math.round((presentToday / todayAttendance.length) * 100) : null;
 
   const showFinancials = can(session.role, "VIEW_DASHBOARD_FINANCIALS");
+
+  const actionDefinitions: Array<[string, string, Parameters<typeof can>[1] | null]> = [
+    ["Students", "/students", "MANAGE_STUDENTS"],
+    ["Staff", "/staff", "MANAGE_STAFF"],
+    ["Fees", "/fees", "MANAGE_FEES"],
+    ["Payments", "/fees/payments", "RECORD_PAYMENT"],
+    ["Classes", "/classes", "MANAGE_CLASSES"],
+    ["Attendance", "/attendance", "TAKE_ATTENDANCE"],
+    ["Reports", "/reports", "VIEW_REPORTS"],
+    ["Audit & Controls", "/audit", "VIEW_AUDIT_TRAIL"],
+  ];
+
+  const actions = actionDefinitions.filter(
+    ([, , permission]) => permission === null || can(session.role, permission)
+  );
 
   return (
     <PortalShell role={session.role} title="Dashboard" subtitle={`Welcome back, ${session.email}`}>
@@ -60,11 +77,7 @@ export default async function DashboardPage() {
 
       {showFinancials && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
-          <StatBlock
-            label="Fees Collected (This Term)"
-            value={formatNaira(collected)}
-            tone="positive"
-          />
+          <StatBlock label="Fees Collected (This Term)" value={formatNaira(collected)} tone="positive" />
           <StatBlock
             label="Fees Outstanding"
             value={formatNaira(outstanding)}
@@ -78,7 +91,11 @@ export default async function DashboardPage() {
           <h2 className="font-serif text-base sm:text-lg mb-3">Quick actions</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
             {actions.map(([label, href]) => (
-              <Link key={href} href={href} className="border border-line bg-white px-3 py-3 hover:border-gold hover:bg-paper transition-colors">
+              <Link
+                key={href}
+                href={href}
+                className="border border-line bg-white px-3 py-3 hover:border-gold hover:bg-paper transition-colors"
+              >
                 <span className="block font-medium">{label}</span>
                 <span className="text-xs text-ink/50">Open workspace →</span>
               </Link>
@@ -93,7 +110,7 @@ export default async function DashboardPage() {
             {recentAudit.map((log) => (
               <li key={log.id} className="border-b border-line pb-2 last:border-0">
                 <span className="text-ink/70 break-all">{log.user?.email ?? "System"}</span>{" "}
-                <span className="text-ink/40">&middot;</span>{" "}
+                <span className="text-ink/40">·</span>{" "}
                 <span>{log.action.replaceAll("_", " ").toLowerCase()}</span>{" "}
                 <span className="text-ink/40 text-xs block sm:inline">
                   ({new Date(log.createdAt).toLocaleString()})
