@@ -8,6 +8,7 @@ import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getBrandingForSchoolId } from "@/lib/branding";
 import { resolveSchoolId } from "@/lib/tenant-scope";
+import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -48,9 +49,13 @@ export default async function ParentPortalPage() {
             {(() => {
               const totalBalance = links.reduce(
                 (sum, l) =>
-                  sum +
-                  l.student.invoices.reduce((s, i) => s + (i.totalAmount - i.amountPaid), 0),
-                0
+                  sum.plus(
+                    l.student.invoices.reduce(
+                      (s, i) => s.plus(i.totalAmount.sub(i.amountPaid)),
+                      new Prisma.Decimal(0)
+                    )
+                  ),
+                new Prisma.Decimal(0)
               );
               const absences = links.reduce(
                 (sum, l) =>
@@ -74,7 +79,7 @@ export default async function ParentPortalPage() {
                   <div className="ledger-block p-4">
                     <p className="text-xs uppercase tracking-wide text-ink/50">Next step</p>
                     <p className="text-sm mt-2 text-navy font-medium">
-                      {totalBalance > 0 ? "Pay fees" : "All clear"}
+                      {totalBalance.gt(0) ? "Pay fees" : "All clear"}
                     </p>
                   </div>
                 </>
@@ -85,7 +90,7 @@ export default async function ParentPortalPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {links.map((link) => {
               const s = link.student;
-              const balance = s.invoices.reduce((sum, i) => sum + (i.totalAmount - i.amountPaid), 0);
+              const balance = s.invoices.reduce((sum, i) => sum.plus(i.totalAmount.sub(i.amountPaid)), new Prisma.Decimal(0));
               const lastAbsence = s.attendances.find((a) => a.status === "ABSENT");
               const unpaid = s.invoices.filter((i) => i.status !== "PAID");
               const classLabel = s.arm
@@ -105,10 +110,10 @@ export default async function ParentPortalPage() {
                     </div>
                     <span
                       className={`text-xs px-2 py-1 rounded-full ${
-                        balance > 0 ? "bg-brick/10 text-brick" : "bg-sage/15 text-sage"
+                        balance.gt(0) ? "bg-brick/10 text-brick" : "bg-sage/15 text-sage"
                       }`}
                     >
-                      {balance > 0 ? "Fees due" : "Paid up"}
+                      {balance.gt(0) ? "Fees due" : "Paid up"}
                     </span>
                   </div>
 
@@ -134,7 +139,7 @@ export default async function ParentPortalPage() {
                         {unpaid.slice(0, 3).map((inv) => (
                           <li key={inv.id} className="flex justify-between gap-2">
                             <span className="text-ink/70 truncate">
-                              {inv.status} · {formatNaira(inv.totalAmount - inv.amountPaid)} due
+                              {inv.status} · {formatNaira(inv.totalAmount.sub(inv.amountPaid))} due
                             </span>
                           </li>
                         ))}
@@ -143,14 +148,14 @@ export default async function ParentPortalPage() {
                         {unpaid[0] && (
                           <PayOnlineButton
                             invoiceId={unpaid[0].id}
-                            maxAmount={unpaid[0].totalAmount - unpaid[0].amountPaid}
+                            maxAmount={Number(unpaid[0].totalAmount.sub(unpaid[0].amountPaid))}
                           />
                         )}
                       </div>
                     </div>
                   )}
 
-                  {balance <= 0 && unpaid.length === 0 && (
+                  {balance.lte(0) && unpaid.length === 0 && (
                     <p className="text-xs text-sage">No outstanding fees for this child.</p>
                   )}
 
