@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
+import { toMoney } from "@/lib/money";
 
 const RunPayrollSchema = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/),
@@ -29,16 +30,18 @@ export async function POST(req: Request) {
 
   let generated = 0;
   for (const staff of staffList) {
-    const gross = staff.monthlySalary ?? 0;
-    const deductions = Math.round(gross * (deductionPercent / 100));
-    const net = gross - deductions;
+    const gross = toMoney(staff.monthlySalary);
+    const deductions = toMoney(gross * (deductionPercent / 100));
+    const net = toMoney(gross - deductions);
 
     const already = await prisma.payslip.findUnique({
       where: { staffId_month: { staffId: staff.id, month } },
     });
     if (already) continue;
 
-    await prisma.payslip.create({ data: { staffId: staff.id, month, gross, deductions, net } });
+    await prisma.payslip.create({
+      data: { staffId: staff.id, month, gross, deductions, net },
+    });
     generated++;
   }
 

@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
+import { toMoney } from "@/lib/money";
 
 const CreateSchema = z.object({
   category: z.string().min(1).max(80),
@@ -38,12 +39,15 @@ export async function GET() {
     _sum: { amount: true },
   });
 
+  const income = toMoney(incomeAgg._sum.amount);
+  const expenseTotal = toMoney(expenseAgg._sum.amount);
+
   return NextResponse.json({
     expenses,
     summary: {
-      income: incomeAgg._sum.amount ?? 0,
-      expenses: expenseAgg._sum.amount ?? 0,
-      net: (incomeAgg._sum.amount ?? 0) - (expenseAgg._sum.amount ?? 0),
+      income,
+      expenses: expenseTotal,
+      net: toMoney(income - expenseTotal),
     },
   });
 }
@@ -77,7 +81,7 @@ export async function POST(req: Request) {
     action: "CREATE_EXPENSE",
     entity: "ExpenseRecord",
     entityId: exp.id,
-    details: { amount: exp.amount, category: exp.category },
+    details: { amount: toMoney(exp.amount), category: exp.category },
   });
 
   return NextResponse.json({ expense: exp }, { status: 201 });

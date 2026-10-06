@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 import { initializePayment } from "@/lib/integrations/payments";
+import { toMoney } from "@/lib/money";
 
 const RecordPaymentSchema = z.object({
   invoiceId: z.string(),
@@ -41,9 +42,10 @@ async function applyManualPayment(
     },
   });
 
-  const newPaid = invoice.amountPaid + amount;
+  const newPaid = toMoney(toMoney(invoice.amountPaid) + amount);
+  const total = toMoney(invoice.totalAmount);
   const status =
-    newPaid >= invoice.totalAmount ? "PAID" : newPaid > 0 ? "PARTIAL" : "UNPAID";
+    newPaid >= total - 0.01 ? "PAID" : newPaid > 0 ? "PARTIAL" : "UNPAID";
 
   await prisma.invoice.update({
     where: { id: invoiceId },
@@ -72,7 +74,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
     }
 
-    const remaining = invoice.totalAmount - invoice.amountPaid;
+    const remaining = toMoney(toMoney(invoice.totalAmount) - toMoney(invoice.amountPaid));
     if (amount > remaining + 0.01) {
       return NextResponse.json({ error: "Amount exceeds balance." }, { status: 400 });
     }
