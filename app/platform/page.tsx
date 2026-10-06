@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PlatformBillingForm } from "@/components/PlatformBillingForm";
 import { isSubscriptionLive, PLAN_LIMITS } from "@/lib/integrations/subscriptions";
 import { PortalShell } from "@/components/PortalShell";
+import { ensureDefaultSchool, backfillSchoolIds } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
