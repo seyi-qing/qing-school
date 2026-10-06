@@ -2,8 +2,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
-import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
+import {
+  resolveSchoolId,
+  schoolWhere,
+  assertStudentInTenant,
+} from "@/lib/tenant-scope";
+import { toMoney } from "@/lib/money";
 
 const RouteSchema = z.object({
   name: z.string().min(1).max(120),
@@ -22,8 +28,22 @@ const EnrollSchema = z.object({
   studentId: z.string(),
 });
 
-function canManage(role: string) {
-  return ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "ACCOUNTANT"].includes(role);
+async function assertRouteInTenant(
+  routeId: string,
+  schoolId: string | null
+): Promise<
+  | { ok: true; route: { id: string; schoolId: string | null; feeAmount: number; name: string } }
+  | { ok: false; status: number; error: string }
+> {
+  const route = await prisma.transportRoute.findUnique({
+    where: { id: routeId },
+    select: { id: true, schoolId: true, feeAmount: true, name: true },
+  });
+  if (!route) return { ok: false, status: 404, error: "Route not found" };
+  if (schoolId && route.schoolId && route.schoolId !== schoolId) {
+    return { ok: false, status: 404, error: "Route not found" };
+  }
+  return { ok: true, route: { ...route, feeAmount: toMoney(route.feeAmount) } };
 }
 
 export async function GET() {
@@ -49,7 +69,7 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   const session = await getSession();
-  if (!session || !canManage(session.role)) {
+  if (!session || !can(session.role, "MANAGE_TRANSPORT")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -62,8 +82,11 @@ export async function PATCH(req: Request) {
     );
   }
 
-  const existing = await prisma.transportRoute.findUnique({ where: { id: parsed.data.id } });
-  if (!existing) return NextResponse.json({ error: "Route not found" }, { status: 404 });
+  const schoolId = await resolveSchoolId(session);
+  const gate = await assertRouteInTenant(parsed.data.id, schoolId);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status });
+  }
 
   const route = await prisma.transportRoute.update({
     where: { id: parsed.data.id },
@@ -78,14 +101,13 @@ export async function PATCH(req: Request) {
 
   await logAudit({
     userId: session.userId,
+    schoolId: schoolId ?? undefined,
     action: "UPDATE_TRANSPORT_ROUTE",
     entity: "TransportRoute",
     entityId: route.id,
     details: {
       name: route.name,
-      driverName: route.driverName,
-      driverPhone: route.driverPhone,
-      feeAmount: route.feeAmount,
+      feeAmount: toMoney(route.feeAmount),
     },
   });
 
@@ -94,13 +116,19 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   const session = await getSession();
-  if (!session || !canManage(session.role)) {
+  if (!session || !can(session.role, "MANAGE_TRANSPORT")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json().catch(() => null);
   const id = typeof body?.id === "string" ? body.id : null;
   if (!id) return NextResponse.json({ error: "Route id required" }, { status: 400 });
+
+  const schoolId = await resolveSchoolId(session);
+  const gate = await assertRouteInTenant(id, schoolId);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status });
+  }
 
   const activeRiders = await prisma.transportEnrollment.count({
     where: { routeId: id, status: "ACTIVE" },
@@ -115,6 +143,7 @@ export async function DELETE(req: Request) {
   await prisma.transportRoute.delete({ where: { id } });
   await logAudit({
     userId: session.userId,
+    schoolId: schoolId ?? undefined,
     action: "DELETE_TRANSPORT_ROUTE",
     entity: "TransportRoute",
     entityId: id,
@@ -125,11 +154,12 @@ export async function DELETE(req: Request) {
 
 export async function POST(req: Request) {
   const session = await getSession();
-  if (!session || !canManage(session.role)) {
+  if (!session || !can(session.role, "MANAGE_TRANSPORT")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json().catch(() => null);
+  const schoolId = await resolveSchoolId(session);
 
   if (body?.action === "createFeeInvoice" && body?.enrollmentId) {
     const en = await prisma.transportEnrollment.findUnique({
@@ -139,10 +169,24 @@ export async function POST(req: Request) {
     if (!en || en.status !== "ACTIVE") {
       return NextResponse.json({ error: "Enrollment not found" }, { status: 404 });
     }
-    if (!en.route.feeAmount || en.route.feeAmount <= 0) {
+    if (schoolId) {
+      if (en.route.schoolId && en.route.schoolId !== schoolId) {
+        return NextResponse.json({ error: "Enrollment not found" }, { status: 404 });
+      }
+      if (en.student.schoolId && en.student.schoolId !== schoolId) {
+        return NextResponse.json({ error: "Enrollment not found" }, { status: 404 });
+      }
+    }
+    const fee = toMoney(en.route.feeAmount);
+    if (fee <= 0) {
       return NextResponse.json({ error: "Route has no fee amount set" }, { status: 400 });
     }
-    const term = await prisma.term.findFirst({ where: { isCurrent: true } });
+    const term = await prisma.term.findFirst({
+      where: {
+        isCurrent: true,
+        ...(schoolId ? { session: { schoolId } } : {}),
+      },
+    });
     if (!term) {
       return NextResponse.json({ error: "No current term set" }, { status: 400 });
     }
@@ -150,15 +194,14 @@ export async function POST(req: Request) {
       data: {
         studentId: en.studentId,
         termId: term.id,
-        lineItems: JSON.stringify([
-          { name: `Transport: ${en.route.name}`, amount: en.route.feeAmount },
-        ]),
-        totalAmount: en.route.feeAmount,
+        lineItems: JSON.stringify([{ name: `Transport: ${en.route.name}`, amount: fee }]),
+        totalAmount: fee,
         status: "UNPAID",
       },
     });
     await logAudit({
       userId: session.userId,
+      schoolId: schoolId ?? undefined,
       action: "TRANSPORT_FEE_INVOICE",
       entity: "Invoice",
       entityId: inv.id,
@@ -168,12 +211,23 @@ export async function POST(req: Request) {
   }
 
   if (body?.action === "unenroll" && body?.enrollmentId) {
-    const en = await prisma.transportEnrollment.update({
+    const existing = await prisma.transportEnrollment.findUnique({
       where: { id: body.enrollmentId },
+      include: { route: { select: { schoolId: true } } },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Enrollment not found" }, { status: 404 });
+    }
+    if (schoolId && existing.route.schoolId && existing.route.schoolId !== schoolId) {
+      return NextResponse.json({ error: "Enrollment not found" }, { status: 404 });
+    }
+    const en = await prisma.transportEnrollment.update({
+      where: { id: existing.id },
       data: { status: "ENDED", endDate: new Date() },
     });
     await logAudit({
       userId: session.userId,
+      schoolId: schoolId ?? undefined,
       action: "UNENROLL_TRANSPORT",
       entity: "TransportEnrollment",
       entityId: en.id,
@@ -184,6 +238,18 @@ export async function POST(req: Request) {
   if (body?.routeId && body?.studentId) {
     const parsed = EnrollSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: "Invalid enrollment" }, { status: 400 });
+
+    const routeGate = await assertRouteInTenant(parsed.data.routeId, schoolId);
+    if (!routeGate.ok) {
+      return NextResponse.json({ error: routeGate.error }, { status: routeGate.status });
+    }
+
+    if (schoolId) {
+      const st = await assertStudentInTenant(parsed.data.studentId, schoolId);
+      if (!st.ok) {
+        return NextResponse.json({ error: st.error }, { status: st.status });
+      }
+    }
 
     const existing = await prisma.transportEnrollment.findFirst({
       where: { studentId: parsed.data.studentId, status: "ACTIVE" },
@@ -201,6 +267,7 @@ export async function POST(req: Request) {
 
     await logAudit({
       userId: session.userId,
+      schoolId: schoolId ?? undefined,
       action: "ENROLL_TRANSPORT",
       entity: "TransportEnrollment",
       entityId: en.id,
@@ -211,7 +278,6 @@ export async function POST(req: Request) {
   const parsed = RouteSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid route data" }, { status: 400 });
 
-  const schoolId = await resolveSchoolId(session);
   const route = await prisma.transportRoute.create({
     data: {
       schoolId: schoolId ?? undefined,
@@ -225,6 +291,7 @@ export async function POST(req: Request) {
 
   await logAudit({
     userId: session.userId,
+    schoolId: schoolId ?? undefined,
     action: "CREATE_TRANSPORT_ROUTE",
     entity: "TransportRoute",
     entityId: route.id,
