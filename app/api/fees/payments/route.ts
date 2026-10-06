@@ -112,7 +112,7 @@ export async function POST(req: Request) {
 
   const { invoiceId, amount, method } = parsed.data;
   const reference = `MANUAL-${Date.now()}`;
-  const payment = await applyManualPayment(invoiceId, amount, method, reference, session.userId);
+  const payment = await applyManualPayment(invoiceId, amount, method, reference, session.userId, session.schoolId ?? "");
 
   await logAudit({
     userId: session.userId,
