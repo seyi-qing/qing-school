@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { toCsv, csvResponse } from "@/lib/csv";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 
 export async function GET() {
   const session = await getSession();
@@ -9,8 +10,12 @@ export async function GET() {
     return new Response("Forbidden", { status: 403 });
   }
 
+  const schoolId = await resolveSchoolId(session);
   const invoices = await prisma.invoice.findMany({
-    where: { status: { in: ["UNPAID", "PARTIAL"] } },
+    where: {
+      ...schoolWhere(schoolId),
+      status: { in: ["UNPAID", "PARTIAL"] },
+    },
     include: { student: { include: { arm: { include: { schoolClass: true } } } } },
   });
 
@@ -20,9 +25,9 @@ export async function GET() {
       inv.student.admissionNumber,
       `${inv.student.lastName}, ${inv.student.firstName}`,
       inv.student.arm ? `${inv.student.arm.schoolClass.name} ${inv.student.arm.name}` : "",
-      inv.totalAmount,
-      inv.amountPaid,
-      inv.totalAmount - inv.amountPaid,
+      inv.totalAmount.toString(),
+      inv.amountPaid.toString(),
+      inv.totalAmount.minus(inv.amountPaid).toString(),
     ])
   );
 
