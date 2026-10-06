@@ -2,8 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
-import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
+import {
+  resolveSchoolId,
+  schoolWhere,
+  assertStudentInTenant,
+} from "@/lib/tenant-scope";
 
 const BookSchema = z.object({
   title: z.string().min(1).max(200),
@@ -30,8 +35,19 @@ const ReturnSchema = z.object({
   loanId: z.string(),
 });
 
-function canManage(role: string) {
-  return ["ADMIN", "IT", "SECRETARY", "TEACHER", "PRINCIPAL"].includes(role);
+async function assertBookInTenant(
+  bookId: string,
+  schoolId: string | null
+): Promise<{ ok: true; book: { id: string; schoolId: string | null; copies: number; available: number } } | { ok: false; status: number; error: string }> {
+  const book = await prisma.libraryBook.findUnique({
+    where: { id: bookId },
+    select: { id: true, schoolId: true, copies: true, available: true },
+  });
+  if (!book) return { ok: false, status: 404, error: "Book not found" };
+  if (schoolId && book.schoolId && book.schoolId !== schoolId) {
+    return { ok: false, status: 404, error: "Book not found" };
+  }
+  return { ok: true, book };
 }
 
 export async function GET() {
@@ -57,7 +73,7 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   const session = await getSession();
-  if (!session || !canManage(session.role)) {
+  if (!session || !can(session.role, "MANAGE_LIBRARY")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -67,8 +83,12 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Invalid book data" }, { status: 400 });
   }
 
-  const book = await prisma.libraryBook.findUnique({ where: { id: parsed.data.id } });
-  if (!book) return NextResponse.json({ error: "Book not found" }, { status: 404 });
+  const schoolId = await resolveSchoolId(session);
+  const gate = await assertBookInTenant(parsed.data.id, schoolId);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status });
+  }
+  const book = gate.book;
 
   const onLoan = book.copies - book.available;
   if (parsed.data.copies < onLoan) {
@@ -92,6 +112,7 @@ export async function PATCH(req: Request) {
 
   await logAudit({
     userId: session.userId,
+    schoolId: schoolId ?? undefined,
     action: "UPDATE_LIBRARY_BOOK",
     entity: "LibraryBook",
     entityId: updated.id,
@@ -102,13 +123,19 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   const session = await getSession();
-  if (!session || !canManage(session.role)) {
+  if (!session || !can(session.role, "MANAGE_LIBRARY")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json().catch(() => null);
   const id = typeof body?.id === "string" ? body.id : null;
   if (!id) return NextResponse.json({ error: "Book id required" }, { status: 400 });
+
+  const schoolId = await resolveSchoolId(session);
+  const gate = await assertBookInTenant(id, schoolId);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status });
+  }
 
   const open = await prisma.bookLoan.count({ where: { bookId: id, returnedAt: null } });
   if (open > 0) {
@@ -121,6 +148,7 @@ export async function DELETE(req: Request) {
   await prisma.libraryBook.delete({ where: { id } });
   await logAudit({
     userId: session.userId,
+    schoolId: schoolId ?? undefined,
     action: "DELETE_LIBRARY_BOOK",
     entity: "LibraryBook",
     entityId: id,
@@ -130,19 +158,26 @@ export async function DELETE(req: Request) {
 
 export async function POST(req: Request) {
   const session = await getSession();
-  if (!session || !canManage(session.role)) {
+  if (!session || !can(session.role, "MANAGE_LIBRARY")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json().catch(() => null);
+  const schoolId = await resolveSchoolId(session);
 
   if (body?.loanId && body?.action === "return") {
     const parsed = ReturnSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: "Invalid" }, { status: 400 });
 
-    const loan = await prisma.bookLoan.findUnique({ where: { id: parsed.data.loanId } });
+    const loan = await prisma.bookLoan.findUnique({
+      where: { id: parsed.data.loanId },
+      include: { book: { select: { schoolId: true } } },
+    });
     if (!loan || loan.returnedAt) {
       return NextResponse.json({ error: "Loan not found or already returned" }, { status: 400 });
+    }
+    if (schoolId && loan.book.schoolId && loan.book.schoolId !== schoolId) {
+      return NextResponse.json({ error: "Loan not found" }, { status: 404 });
     }
 
     await prisma.$transaction([
@@ -158,6 +193,7 @@ export async function POST(req: Request) {
 
     await logAudit({
       userId: session.userId,
+      schoolId: schoolId ?? undefined,
       action: "RETURN_BOOK",
       entity: "BookLoan",
       entityId: loan.id,
@@ -169,9 +205,19 @@ export async function POST(req: Request) {
     const parsed = LoanSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: "Invalid loan data" }, { status: 400 });
 
-    const book = await prisma.libraryBook.findUnique({ where: { id: parsed.data.bookId } });
-    if (!book || book.available < 1) {
+    const bookGate = await assertBookInTenant(parsed.data.bookId, schoolId);
+    if (!bookGate.ok) {
+      return NextResponse.json({ error: bookGate.error }, { status: bookGate.status });
+    }
+    if (bookGate.book.available < 1) {
       return NextResponse.json({ error: "No copies available" }, { status: 400 });
+    }
+
+    if (schoolId) {
+      const st = await assertStudentInTenant(parsed.data.studentId, schoolId);
+      if (!st.ok) {
+        return NextResponse.json({ error: st.error }, { status: st.status });
+      }
     }
 
     const due = parsed.data.dueDate
@@ -180,12 +226,12 @@ export async function POST(req: Request) {
 
     const loan = await prisma.$transaction(async (tx) => {
       await tx.libraryBook.update({
-        where: { id: book.id },
+        where: { id: bookGate.book.id },
         data: { available: { decrement: 1 } },
       });
       return tx.bookLoan.create({
         data: {
-          bookId: book.id,
+          bookId: bookGate.book.id,
           studentId: parsed.data.studentId,
           dueDate: due,
         },
@@ -194,6 +240,7 @@ export async function POST(req: Request) {
 
     await logAudit({
       userId: session.userId,
+      schoolId: schoolId ?? undefined,
       action: "ISSUE_BOOK",
       entity: "BookLoan",
       entityId: loan.id,
@@ -206,7 +253,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid book data" }, { status: 400 });
   }
 
-  const schoolId = await resolveSchoolId(session);
   const book = await prisma.libraryBook.create({
     data: {
       schoolId: schoolId ?? undefined,
@@ -220,6 +266,7 @@ export async function POST(req: Request) {
 
   await logAudit({
     userId: session.userId,
+    schoolId: schoolId ?? undefined,
     action: "ADD_LIBRARY_BOOK",
     entity: "LibraryBook",
     entityId: book.id,

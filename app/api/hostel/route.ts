@@ -2,8 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
-import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
+import {
+  resolveSchoolId,
+  schoolWhere,
+  assertStudentInTenant,
+} from "@/lib/tenant-scope";
 
 const RoomSchema = z.object({
   name: z.string().min(1).max(80),
@@ -22,8 +27,22 @@ const AllocateSchema = z.object({
   bedLabel: z.string().max(20).optional(),
 });
 
-function canManage(role: string) {
-  return ["ADMIN", "IT", "SECRETARY", "PRINCIPAL"].includes(role);
+async function assertRoomInTenant(
+  roomId: string,
+  schoolId: string | null
+): Promise<
+  | { ok: true; room: { id: string; schoolId: string | null; capacity: number } }
+  | { ok: false; status: number; error: string }
+> {
+  const room = await prisma.hostelRoom.findUnique({
+    where: { id: roomId },
+    select: { id: true, schoolId: true, capacity: true },
+  });
+  if (!room) return { ok: false, status: 404, error: "Room not found" };
+  if (schoolId && room.schoolId && room.schoolId !== schoolId) {
+    return { ok: false, status: 404, error: "Room not found" };
+  }
+  return { ok: true, room };
 }
 
 export async function GET() {
@@ -49,7 +68,7 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   const session = await getSession();
-  if (!session || !canManage(session.role)) {
+  if (!session || !can(session.role, "MANAGE_HOSTEL")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -57,6 +76,12 @@ export async function PATCH(req: Request) {
   const parsed = UpdateRoomSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid room data" }, { status: 400 });
+  }
+
+  const schoolId = await resolveSchoolId(session);
+  const gate = await assertRoomInTenant(parsed.data.id, schoolId);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status });
   }
 
   const room = await prisma.hostelRoom.findUnique({
@@ -84,6 +109,7 @@ export async function PATCH(req: Request) {
 
   await logAudit({
     userId: session.userId,
+    schoolId: schoolId ?? undefined,
     action: "UPDATE_HOSTEL_ROOM",
     entity: "HostelRoom",
     entityId: updated.id,
@@ -94,13 +120,19 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   const session = await getSession();
-  if (!session || !canManage(session.role)) {
+  if (!session || !can(session.role, "MANAGE_HOSTEL")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json().catch(() => null);
   const id = typeof body?.id === "string" ? body.id : null;
   if (!id) return NextResponse.json({ error: "Room id required" }, { status: 400 });
+
+  const schoolId = await resolveSchoolId(session);
+  const gate = await assertRoomInTenant(id, schoolId);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status });
+  }
 
   const active = await prisma.hostelAllocation.count({
     where: { roomId: id, status: "ACTIVE" },
@@ -115,6 +147,7 @@ export async function DELETE(req: Request) {
   await prisma.hostelRoom.delete({ where: { id } });
   await logAudit({
     userId: session.userId,
+    schoolId: schoolId ?? undefined,
     action: "DELETE_HOSTEL_ROOM",
     entity: "HostelRoom",
     entityId: id,
@@ -124,19 +157,30 @@ export async function DELETE(req: Request) {
 
 export async function POST(req: Request) {
   const session = await getSession();
-  if (!session || !canManage(session.role)) {
+  if (!session || !can(session.role, "MANAGE_HOSTEL")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json().catch(() => null);
+  const schoolId = await resolveSchoolId(session);
 
   if (body?.action === "vacate" && body?.allocationId) {
-    const alloc = await prisma.hostelAllocation.update({
+    const alloc = await prisma.hostelAllocation.findUnique({
       where: { id: body.allocationId },
+      include: { room: { select: { schoolId: true } } },
+    });
+    if (!alloc) return NextResponse.json({ error: "Allocation not found" }, { status: 404 });
+    if (schoolId && alloc.room.schoolId && alloc.room.schoolId !== schoolId) {
+      return NextResponse.json({ error: "Allocation not found" }, { status: 404 });
+    }
+
+    await prisma.hostelAllocation.update({
+      where: { id: alloc.id },
       data: { status: "VACATED", vacatedAt: new Date() },
     });
     await logAudit({
       userId: session.userId,
+      schoolId: schoolId ?? undefined,
       action: "VACATE_HOSTEL",
       entity: "HostelAllocation",
       entityId: alloc.id,
@@ -147,6 +191,18 @@ export async function POST(req: Request) {
   if (body?.roomId && body?.studentId) {
     const parsed = AllocateSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: "Invalid allocation" }, { status: 400 });
+
+    const roomGate = await assertRoomInTenant(parsed.data.roomId, schoolId);
+    if (!roomGate.ok) {
+      return NextResponse.json({ error: roomGate.error }, { status: roomGate.status });
+    }
+
+    if (schoolId) {
+      const st = await assertStudentInTenant(parsed.data.studentId, schoolId);
+      if (!st.ok) {
+        return NextResponse.json({ error: st.error }, { status: st.status });
+      }
+    }
 
     const room = await prisma.hostelRoom.findUnique({
       where: { id: parsed.data.roomId },
@@ -174,6 +230,7 @@ export async function POST(req: Request) {
 
     await logAudit({
       userId: session.userId,
+      schoolId: schoolId ?? undefined,
       action: "ALLOCATE_HOSTEL",
       entity: "HostelAllocation",
       entityId: alloc.id,
@@ -184,7 +241,6 @@ export async function POST(req: Request) {
   const parsed = RoomSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid room data" }, { status: 400 });
 
-  const schoolId = await resolveSchoolId(session);
   const room = await prisma.hostelRoom.create({
     data: {
       schoolId: schoolId ?? undefined,
@@ -197,6 +253,7 @@ export async function POST(req: Request) {
 
   await logAudit({
     userId: session.userId,
+    schoolId: schoolId ?? undefined,
     action: "CREATE_HOSTEL_ROOM",
     entity: "HostelRoom",
     entityId: room.id,
