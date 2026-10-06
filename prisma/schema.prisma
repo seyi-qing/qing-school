@@ -80,9 +80,22 @@ model User {
   staff        Staff?
   student      Student?
   parentLinks  ParentLink[]
+  passwordResetTokens PasswordResetToken[]
   auditLogs    AuditLog[]
   @@index([role])
   @@index([schoolId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model ParentLink {
