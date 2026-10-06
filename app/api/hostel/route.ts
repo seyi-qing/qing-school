@@ -53,14 +53,15 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const schoolId = await resolveSchoolId(session);
   const body = await req.json().catch(() => null);
   const parsed = UpdateRoomSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid room data" }, { status: 400 });
   }
 
-  const room = await prisma.hostelRoom.findUnique({
-    where: { id: parsed.data.id },
+  const room = await prisma.hostelRoom.findFirst({
+    where: { id: parsed.data.id, ...schoolWhere(schoolId) },
     include: { allocations: { where: { status: "ACTIVE" } } },
   });
   if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
@@ -98,12 +99,18 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const schoolId = await resolveSchoolId(session);
   const body = await req.json().catch(() => null);
   const id = typeof body?.id === "string" ? body.id : null;
   if (!id) return NextResponse.json({ error: "Room id required" }, { status: 400 });
 
+  const room = await prisma.hostelRoom.findFirst({
+    where: { id, ...schoolWhere(schoolId) },
+  });
+  if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
+
   const active = await prisma.hostelAllocation.count({
-    where: { roomId: id, status: "ACTIVE" },
+    where: { roomId: room.id, schoolId, status: "ACTIVE" },
   });
   if (active > 0) {
     return NextResponse.json(
@@ -128,11 +135,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const schoolId = await resolveSchoolId(session);
   const body = await req.json().catch(() => null);
 
   if (body?.action === "vacate" && body?.allocationId) {
+    const allocation = await prisma.hostelAllocation.findFirst({
+      where: { id: body.allocationId, schoolId },
+    });
+    if (!allocation) {
+      return NextResponse.json({ error: "Allocation not found" }, { status: 404 });
+    }
+
     const alloc = await prisma.hostelAllocation.update({
-      where: { id: body.allocationId },
+      where: { id: allocation.id },
       data: { status: "VACATED", vacatedAt: new Date() },
     });
     await logAudit({
@@ -148,11 +163,17 @@ export async function POST(req: Request) {
     const parsed = AllocateSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: "Invalid allocation" }, { status: 400 });
 
-    const room = await prisma.hostelRoom.findUnique({
-      where: { id: parsed.data.roomId },
+    const room = await prisma.hostelRoom.findFirst({
+      where: { id: parsed.data.roomId, ...schoolWhere(schoolId) },
       include: { allocations: { where: { status: "ACTIVE" } } },
     });
-    if (!room || !student) return NextResponse.json({ error: "Room/student is outside your school" }, { status: 403 });
+    const student = await prisma.student.findFirst({
+      where: { id: parsed.data.studentId, ...schoolWhere(schoolId) },
+    });
+
+    if (!room || !student) {
+      return NextResponse.json({ error: "Room/student is outside your school" }, { status: 403 });
+    }
     if (room.allocations.length >= room.capacity) {
       return NextResponse.json({ error: "Room is full" }, { status: 400 });
     }
@@ -166,8 +187,9 @@ export async function POST(req: Request) {
 
     const alloc = await prisma.hostelAllocation.create({
       data: {
-        roomId: parsed.data.roomId,
-        studentId: parsed.data.studentId,
+        schoolId,
+        roomId: room.id,
+        studentId: student.id,
         bedLabel: parsed.data.bedLabel || null,
       },
     });
@@ -184,10 +206,9 @@ export async function POST(req: Request) {
   const parsed = RoomSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid room data" }, { status: 400 });
 
-  const schoolId = await resolveSchoolId(session);
   const room = await prisma.hostelRoom.create({
     data: {
-      schoolId: schoolId ?? undefined,
+      schoolId,
       name: parsed.data.name.trim(),
       block: parsed.data.block?.trim() || null,
       capacity: parsed.data.capacity,
