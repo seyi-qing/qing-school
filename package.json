@@ -1,8 +1,8 @@
 {
   "name": "kms-school-erp",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
-  "description": "Kayvlop Magnificent School (KMS) — full school ERP",
+  "description": "Qing School — multi-tenant school ERP / SaaS (KMS first tenant)",
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "next dev",
@@ -14,7 +14,7 @@
     "db:studio": "prisma studio",
     "setup": "npm install && prisma generate && prisma db push && npm run db:seed",
     "test": "vitest run",
-    "test:unit": "tsx lib/tenant-scope.test.ts && tsx lib/permissions.test.ts && tsx lib/money.test.ts",
+    "test:unit": "tsx lib/tenant-scope.test.ts && tsx lib/permissions.test.ts && tsx lib/money.test.ts && tsx lib/rate-limit.test.ts",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:status": "prisma migrate status",
