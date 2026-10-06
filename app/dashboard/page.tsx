@@ -51,7 +51,14 @@ export default async function DashboardPage() {
       take: 8,
       include: { user: { select: { email: true } } },
     }),
-    prisma.leaveRequest.count({ where: { status: "PENDING" } }).catch(() => 0),
+    prisma.leaveRequest
+      .count({
+        where: {
+          status: "PENDING",
+          ...(schoolId ? { staff: { schoolId } } : {}),
+        },
+      })
+      .catch(() => 0),
   ]);
 
   const collected = invoices.reduce((sum, i) => sum + toMoney(i.amountPaid), 0);
