@@ -12,6 +12,20 @@ const LoginSchema = z.object({
 
 const MAX_FAILED_LOGINS = 5;
 const LOCKOUT_MINUTES = 15;
+const RATE_WINDOW_MS = 60_000;
+const MAX_REQUESTS_PER_WINDOW = 10;
+
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+
+function isRateLimited(key: string, now: number) {
+  const current = loginAttempts.get(key);
+  if (!current || current.resetAt <= now) {
+    loginAttempts.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return false;
+  }
+  current.count += 1;
+  return current.count > MAX_REQUESTS_PER_WINDOW;
+}
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -21,6 +35,13 @@ export async function POST(req: Request) {
   }
 
   const { email, password } = parsed.data;
+  const forwarded = req.headers.get("x-forwarded-for");
+  const clientIp = forwarded?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
+  const rateKey = clientIp + ":" + email.toLowerCase();
+  if (isRateLimited(rateKey, Date.now())) {
+    return NextResponse.json({ error: "Too many login attempts. Try again later." }, { status: 429 });
+  }
+
   const user = await prisma.user.findUnique({ where: { email } });
 
   if (!user || !user.isActive) {
