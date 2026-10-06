@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyPayment, type PaymentProvider } from "@/lib/integrations/payments";
 import { finalizeOnlinePayment } from "@/lib/payments-apply";
 import { prisma } from "@/lib/db";
+import { toMoney } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
 
   const result = await finalizeOnlinePayment({
     reference,
-    amountNaira: verified.amountNaira || pending.amount,
+    amountNaira: verified.amountNaira || toMoney(pending.amount),
   });
 
   if (!result.ok) {

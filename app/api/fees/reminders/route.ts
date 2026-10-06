@@ -5,6 +5,7 @@ import { sendSms } from "@/lib/integrations/messaging";
 import { formatNaira } from "@/lib/format";
 import { SCHOOL } from "@/lib/school-config";
 import { extractPhone } from "@/lib/phone";
+import { toMoney } from "@/lib/money";
 
 export async function POST() {
   const session = await getSession();
@@ -28,7 +29,7 @@ export async function POST() {
       skipped++;
       continue;
     }
-    const bal = inv.totalAmount - inv.amountPaid;
+    const bal = toMoney(toMoney(inv.totalAmount) - toMoney(inv.amountPaid));
     const body = `${SCHOOL.shortName}: Fee reminder for ${inv.student.firstName}. Balance ${formatNaira(bal)}. Please pay at the office or online portal.`;
     const result = await sendSms({ to: phone, body });
     if (result.ok) sent++;

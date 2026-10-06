@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { toCsv, csvResponse } from "@/lib/csv";
+import { toMoney } from "@/lib/money";
 
 export async function GET() {
   const session = await getSession();
@@ -20,9 +21,9 @@ export async function GET() {
       inv.student.admissionNumber,
       `${inv.student.lastName}, ${inv.student.firstName}`,
       inv.student.arm ? `${inv.student.arm.schoolClass.name} ${inv.student.arm.name}` : "",
-      inv.totalAmount,
-      inv.amountPaid,
-      inv.totalAmount - inv.amountPaid,
+      toMoney(inv.totalAmount),
+      toMoney(inv.amountPaid),
+      toMoney(toMoney(inv.totalAmount) - toMoney(inv.amountPaid)),
     ])
   );
 
