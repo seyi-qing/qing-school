@@ -5,11 +5,18 @@ import { verifyPassword, createSession } from "@/lib/auth";
 import { homeRouteForRole } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 import { ensureDefaultSchool } from "@/lib/tenant";
+import { checkRateLimit, clearRateLimit, rateLimitKey } from "@/lib/rate-limit";
 
 const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
+
+function clientIp(req: Request): string {
+  const xf = req.headers.get("x-forwarded-for");
+  if (xf) return xf.split(",")[0]?.trim() || "unknown";
+  return req.headers.get("x-real-ip") || "unknown";
+}
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -19,6 +26,17 @@ export async function POST(req: Request) {
   }
 
   const { email, password } = parsed.data;
+  const key = rateLimitKey(clientIp(req), email);
+  const limited = checkRateLimit(key);
+  if (!limited.ok) {
+    return NextResponse.json(
+      {
+        error: `Too many login attempts. Try again in ${limited.retryAfterSec} seconds.`,
+      },
+      { status: 429 }
+    );
+  }
+
   let user = await prisma.user.findUnique({ where: { email } });
 
   if (!user || !user.isActive) {
@@ -30,7 +48,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
   }
 
-  // Non-platform users without a school get attached to KMS (legacy accounts)
+  clearRateLimit(key);
+
   let schoolId = user.schoolId;
   if (!schoolId && user.role !== "PLATFORM_ADMIN") {
     const kms = await ensureDefaultSchool();
@@ -58,7 +77,6 @@ export async function POST(req: Request) {
     entityId: user.id,
     details: {
       schoolId: schoolId ?? null,
-      schoolSlug: schoolId ? "kms-or-tenant" : null,
       role: user.role,
     },
   });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
+import { assertSetupAllowed } from "@/lib/setup-guard";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -34,54 +35,26 @@ async function upsertKmsUser(
     if (!taken || taken.id === legacy.id) {
       return prisma.user.update({
         where: { id: legacy.id },
-        data: { email, passwordHash, role, isActive: true },
+        data: { email, passwordHash, role, isActive: true, mustChangePassword: true },
       });
     }
   }
   return prisma.user.upsert({
     where: { email },
-    update: { passwordHash, role, isActive: true },
-    create: { email, passwordHash, role },
+    update: { passwordHash, role, isActive: true, mustChangePassword: true },
+    create: { email, passwordHash, role, mustChangePassword: true },
   });
 }
 
 export async function GET(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret");
-  const expected = process.env.SETUP_SECRET;
-
-  if (!expected || expected.length < 8) {
-    return NextResponse.json(
-      { ok: false, error: "SETUP_SECRET is not set on the server." },
-      { status: 503 }
-    );
-  }
-  if (secret !== expected) {
-    return NextResponse.json({ ok: false, error: "Invalid secret" }, { status: 401 });
-  }
-
-  const allow = process.env.ALLOW_SETUP_SEED;
-  if (allow === "false" || allow === "0") {
-    return NextResponse.json(
-      {
-        ok: false,
-        error:
-          "Setup seed is disabled (ALLOW_SETUP_SEED=false). Re-enable temporarily in Vercel env to migrate, then disable again.",
-      },
-      { status: 403 }
-    );
-  }
-
   const confirm = req.nextUrl.searchParams.get("confirm");
-  if (confirm !== "MIGRATE") {
-    return NextResponse.json(
-      {
-        ok: false,
-        error:
-          "Add &confirm=MIGRATE to the URL to run seed (one-time account migration). Example: /api/setup/seed?secret=...&confirm=MIGRATE",
-      },
-      { status: 400 }
-    );
-  }
+
+  const gate = assertSetupAllowed(secret, {
+    requireConfirm: "MIGRATE",
+    confirmValue: confirm,
+  });
+  if (!gate.ok) return gate.response;
 
   try {
     const passwordHash = await hashPassword(DEMO_PASSWORD);
@@ -92,7 +65,6 @@ export async function GET(req: NextRequest) {
       users[acc.role] = u;
     }
 
-    // Session unique is (schoolId, name) — cannot upsert by name alone
     let session = await prisma.session.findFirst({ where: { name: "2025/2026" } });
     if (!session) {
       session = await prisma.session.create({
@@ -243,18 +215,12 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      message: "KMS seed complete — accounts migrated to @kms.sch.ng",
-      password: DEMO_PASSWORD,
+      message:
+        "KMS seed complete. All accounts require password change on first login. REMOVE ALLOW_PRODUCTION_SETUP and set ALLOW_SETUP_SEED=false after bootstrap.",
       accounts: ACCOUNTS.map((a) => `${a.role}: ${a.email}`),
       studentAdmission: student.admissionNumber,
-      linked: {
-        studentUserId: studentUser.id,
-        studentId: student.id,
-        teacherStaffId: teacherStaff.id,
-        parentUserId: parentUser.id,
-      },
       loginUrl: "/login",
-      tip: "Set ALLOW_SETUP_SEED=false in Vercel after migration, and change the admin password.",
+      tip: "Default password was set only for bootstrap — change immediately. Disable setup env flags now.",
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

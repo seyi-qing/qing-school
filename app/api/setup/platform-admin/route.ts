@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
+import { assertSetupAllowed } from "@/lib/setup-guard";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -10,25 +11,18 @@ const DEFAULT_PASSWORD = "Password123!";
 
 /**
  * GET /api/setup/platform-admin?secret=SETUP_SECRET&confirm=CREATE
- * Creates or resets PLATFORM_ADMIN (super admin over all schools).
- * Does not touch school ADMIN accounts.
+ * Creates or resets PLATFORM_ADMIN.
+ * Production requires ALLOW_PRODUCTION_SETUP=true (remove after bootstrap).
  */
 export async function GET(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret");
-  const expected = process.env.SETUP_SECRET;
-  if (!expected || expected.length < 8) {
-    return NextResponse.json({ ok: false, error: "SETUP_SECRET is not set." }, { status: 503 });
-  }
-  if (secret !== expected) {
-    return NextResponse.json({ ok: false, error: "Invalid secret" }, { status: 401 });
-  }
-  if (req.nextUrl.searchParams.get("confirm") !== "CREATE") {
-    return NextResponse.json({
-      ok: false,
-      error: "Add &confirm=CREATE to create/reset platform admin.",
-      email: PLATFORM_EMAIL,
-    });
-  }
+  const confirm = req.nextUrl.searchParams.get("confirm");
+
+  const gate = assertSetupAllowed(secret, {
+    requireConfirm: "CREATE",
+    confirmValue: confirm,
+  });
+  if (!gate.ok) return gate.response;
 
   const passwordHash = await hashPassword(DEFAULT_PASSWORD);
   const user = await prisma.user.upsert({
@@ -54,7 +48,6 @@ export async function GET(req: NextRequest) {
     ok: true,
     email: user.email,
     role: user.role,
-    password: DEFAULT_PASSWORD,
-    note: "Change password on first login. This user is PLATFORM_ADMIN (all schools), not school ADMIN.",
+    note: "Change password on first login. Remove ALLOW_PRODUCTION_SETUP from Vercel after bootstrap.",
   });
 }
