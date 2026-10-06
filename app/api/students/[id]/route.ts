@@ -9,8 +9,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const student = await prisma.student.findUnique({
-    where: { id: params.id },
+  const schoolId = await resolveSchoolId(session);
+  if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 409 });
+
+  const student = await prisma.student.findFirst({
+    where: { id: params.id, schoolId },
     include: {
       arm: { include: { schoolClass: true } },
       invoices: { include: { payments: true }, orderBy: { createdAt: "desc" } },
@@ -22,12 +25,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
   if (!student) return NextResponse.json({ error: "Student not found" }, { status: 404 });
 
-  const schoolId = await resolveSchoolId(session);
-  if (schoolId && student.schoolId && student.schoolId !== schoolId) {
-    return NextResponse.json({ error: "Student not found" }, { status: 404 });
-  }
-
-  if (session.role === "STUDENT") {
+   if (session.role === "STUDENT") {
     const owns = await prisma.student.findFirst({ where: { id: params.id, userId: session.userId } });
     if (!owns) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
