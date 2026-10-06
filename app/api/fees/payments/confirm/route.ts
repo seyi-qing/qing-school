@@ -23,14 +23,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unknown reference" }, { status: 404 });
   }
 
+  if (pending.status === "SUCCESS") {
+    return NextResponse.json({
+      ok: true,
+      alreadyApplied: true,
+      payment: pending,
+    });
+  }
+
+  if (pending.method !== provider) {
+    return NextResponse.json({ error: "Payment provider mismatch" }, { status: 400 });
+  }
+
   const verified = await verifyPayment(provider, reference);
-  if (!verified.success && process.env.PAYSTACK_SECRET_KEY) {
+
+  // In live mode the gateway must positively verify the charge. Mock mode is
+  // explicitly controlled by PAYMENTS_MODE/ALLOW_MOCK_PAYMENTS in the gateway helper.
+  if (!verified.success) {
     return NextResponse.json({ error: "Payment not verified" }, { status: 402 });
   }
 
   const result = await finalizeOnlinePayment({
     reference,
-    amountNaira: verified.amountNaira || Number(pending.amount),
+    amountNaira: verified.amountNaira,
   });
 
   if (!result.ok) {
