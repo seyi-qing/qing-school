@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { PortalShell } from "@/components/PortalShell";
@@ -18,8 +19,8 @@ export default async function ExpensesPage() {
     prisma.expenseRecord.aggregate({ _sum: { amount: true } }),
   ]);
 
-  const income = incomeAgg._sum.amount ?? new prisma.Prisma.Decimal(0);
-  const expenseTotal = expenseAgg._sum.amount ?? new prisma.Prisma.Decimal(0);
+  const income = incomeAgg._sum.amount ?? new Prisma.Decimal(0);
+  const expenseTotal = expenseAgg._sum.amount ?? new Prisma.Decimal(0);
   const net = income.sub(expenseTotal);
 
   return (
