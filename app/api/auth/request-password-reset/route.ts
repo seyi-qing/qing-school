@@ -47,7 +47,7 @@ export async function POST(req: Request) {
   if (!origin) return NextResponse.json({ error: "Password reset email is not configured." }, { status: 503 });
 
   try {
-    await sendPasswordResetEmail(user.email, origin.replace(//$/, "") + "/reset-password?token=" + rawToken);
+    await sendPasswordResetEmail(user.email, origin.replace(/\/$/, "") + "/reset-password?token=" + rawToken);
   } catch {
     await prisma.passwordResetToken.updateMany({ where: { tokenHash }, data: { usedAt: new Date() } });
     return NextResponse.json({ error: "Password reset email is not configured." }, { status: 503 });
