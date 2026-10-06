@@ -10,6 +10,9 @@ const LoginSchema = z.object({
   password: z.string().min(1),
 });
 
+const MAX_FAILED_LOGINS = 5;
+const LOCKOUT_MINUTES = 15;
+
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const parsed = LoginSchema.safeParse(body);
@@ -24,8 +27,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
   }
 
+  const now = new Date();
+  if (user.lockedUntil && user.lockedUntil > now) {
+    return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
+  }
+
   const valid = await verifyPassword(password, user.passwordHash);
   if (!valid) {
+    const nextFailedCount = (user.failedLoginCount ?? 0) + 1;
+    const shouldLock = nextFailedCount >= MAX_FAILED_LOGINS;
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        failedLoginCount: shouldLock ? 0 : nextFailedCount,
+        lockedUntil: shouldLock
+          ? new Date(now.getTime() + LOCKOUT_MINUTES * 60 * 1000)
+          : null,
+      },
+    });
+
     return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
   }
 
@@ -37,6 +58,11 @@ export async function POST(req: Request) {
     );
   }
 
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { failedLoginCount: 0, lockedUntil: null },
+  });
+
   const mustChange = Boolean(user.mustChangePassword);
 
   await createSession({
@@ -47,6 +73,7 @@ export async function POST(req: Request) {
     mustChangePassword: mustChange,
     sessionVersion: user.sessionVersion,
   });
+
   await logAudit({
     userId: user.id,
     schoolId,
