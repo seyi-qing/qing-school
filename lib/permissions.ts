@@ -24,7 +24,14 @@ export type Permission = keyof typeof PERMISSIONS;
 
 export function can(role: Role | undefined | null, permission: Permission): boolean {
   if (!role) return false;
+  if (role === "PLATFORM_ADMIN") return true;
   return (PERMISSIONS[permission] as readonly string[]).includes(role);
+}
+
+export function requireRoles(role: Role | undefined | null, allowed: Role[]): boolean {
+  if (!role) return false;
+  if (role === "PLATFORM_ADMIN") return true;
+  return allowed.includes(role);
 }
 
 export function homeRouteForRole(role: Role): string {

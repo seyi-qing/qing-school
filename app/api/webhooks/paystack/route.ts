@@ -6,21 +6,26 @@ import { applySubscriptionWebhook } from "@/lib/integrations/subscriptions";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-/**
- * Paystack webhook. Dashboard → Settings → Webhooks:
- *   https://your-domain.vercel.app/api/webhooks/paystack
- *
- * Handles:
- * - charge.success (school fee payments)
- * - subscription.create / subscription.enable / subscription.disable
- * - invoice.payment_failed / invoice.update
- */
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-paystack-signature") || "";
-  const secret = process.env.PAYSTACK_WEBHOOK_SECRET || process.env.PAYSTACK_SECRET_KEY || "";
+  const secret =
+    process.env.PAYSTACK_WEBHOOK_SECRET || process.env.PAYSTACK_SECRET_KEY || "";
+  const paymentsMode = (process.env.PAYMENTS_MODE || "").toLowerCase();
+  const allowMock = paymentsMode === "mock" || paymentsMode === "dev";
 
-  if (secret) {
+  if (!secret) {
+    if (!allowMock) {
+      console.error("[paystack webhook] No secret and PAYMENTS_MODE is not mock");
+      return NextResponse.json(
+        {
+          error:
+            "Webhook not configured. Set PAYSTACK_WEBHOOK_SECRET (or PAYSTACK_SECRET_KEY), or PAYMENTS_MODE=mock for development.",
+        },
+        { status: 503 }
+      );
+    }
+  } else {
     const hash = crypto.createHmac("sha512", secret).update(rawBody).digest("hex");
     if (hash !== signature) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
@@ -32,14 +37,9 @@ export async function POST(req: NextRequest) {
     data?: Record<string, unknown> & {
       reference?: string;
       amount?: number;
-      status?: string;
-      subscription_code?: string;
-      next_payment_date?: string;
-      customer?: { customer_code?: string; email?: string };
-      plan?: { name?: string; plan_code?: string };
-      metadata?: { schoolId?: string; plan?: string; type?: string };
     };
   };
+
   try {
     event = JSON.parse(rawBody);
   } catch {
@@ -47,47 +47,40 @@ export async function POST(req: NextRequest) {
   }
 
   const name = event.event || "";
+  const data = event.data || {};
 
-  if (name === "charge.success" && event.data?.reference) {
-    if (event.data.metadata?.type === "saas_subscription") {
-      await applySubscriptionWebhook({
-        ...event.data,
-        status: "active",
-      });
-    } else {
-      const amountNaira = event.data.amount ? event.data.amount / 100 : undefined;
+  try {
+    if (name === "charge.success" && data.reference) {
+      const amountNaira =
+        typeof data.amount === "number" ? data.amount / 100 : undefined;
       const result = await finalizeOnlinePayment({
-        reference: event.data.reference,
+        reference: String(data.reference),
         amountNaira,
       });
       if (!result.ok) {
-        console.error("[paystack webhook fee]", result.error);
+        return NextResponse.json({ received: true, applied: false, error: result.error });
       }
+      return NextResponse.json({
+        received: true,
+        applied: !result.alreadyApplied,
+        alreadyApplied: result.alreadyApplied,
+      });
     }
-  }
 
-  if (
-    name === "subscription.create" ||
-    name === "subscription.enable" ||
-    name === "subscription.disable" ||
-    name === "subscription.not_renew" ||
-    name === "invoice.update" ||
-    name === "invoice.payment_failed"
-  ) {
-    const status =
-      name === "subscription.disable" || name === "invoice.payment_failed"
-        ? name === "invoice.payment_failed"
-          ? "attention"
-          : "cancelled"
-        : (event.data?.status as string) || "active";
-    const result = await applySubscriptionWebhook({
-      ...(event.data || {}),
-      status,
-    });
-    if (!result.ok) {
-      console.error("[paystack webhook sub]", result.error);
+    if (
+      name.startsWith("subscription.") ||
+      name.startsWith("invoice.") ||
+      name === "subscription.create" ||
+      name === "subscription.enable" ||
+      name === "subscription.disable"
+    ) {
+      await applySubscriptionWebhook(name, data as Record<string, unknown>);
+      return NextResponse.json({ received: true, type: "subscription" });
     }
-  }
 
-  return NextResponse.json({ received: true });
+    return NextResponse.json({ received: true, ignored: name });
+  } catch (e) {
+    console.error("[paystack webhook]", e);
+    return NextResponse.json({ error: "Processing failed" }, { status: 500 });
+  }
 }
