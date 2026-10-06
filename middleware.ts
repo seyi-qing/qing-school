@@ -18,7 +18,6 @@ const PUBLIC_PATHS = [
   "/pay",
   "/p",
   "/onboarding",
-  "/api/onboarding",
 ];
 
 const PORTAL_RULES: Array<{ prefix: string; roles: string[] }> = [
