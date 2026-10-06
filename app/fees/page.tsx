@@ -117,7 +117,7 @@ export default async function FeesPage() {
                   </td>
                   <td>
                     {inv.status !== "PAID" && (
-                      <CollectPaymentForm invoiceId={inv.id} maxAmount={balance} />
+                      <CollectPaymentForm invoiceId={inv.id} maxAmount={Number(balance)} />
                     )}
                   </td>
                 </tr>
