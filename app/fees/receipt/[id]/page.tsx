@@ -26,7 +26,7 @@ export default async function PaymentReceiptPage({ params }: { params: { id: str
   const classLabel = payment.student.arm
     ? `${payment.student.arm.schoolClass.name} ${payment.student.arm.name}`
     : "-";
-  const balance = payment.invoice.totalAmount - payment.invoice.amountPaid;
+  const balance = payment.invoice.totalAmount.sub(payment.invoice.amountPaid);
 
   return (
     <div className="max-w-lg mx-auto p-6 sm:p-10 font-sans text-ink report-card-print">
@@ -81,7 +81,7 @@ export default async function PaymentReceiptPage({ params }: { params: { id: str
           </div>
           <div className="flex justify-between gap-4 border-b border-line py-1">
             <dt className="text-ink/50">Balance after payment</dt>
-            <dd className={balance > 0 ? "text-brick" : "text-sage"}>{formatNaira(balance)}</dd>
+            <dd className={balance.gt(0) ? "text-brick" : "text-sage"}>{formatNaira(balance)}</dd>
           </div>
           <div className="flex justify-between gap-4 py-1">
             <dt className="text-ink/50">Status</dt>
