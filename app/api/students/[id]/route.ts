@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
@@ -140,7 +141,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
 
   const paidTotal = student.invoices.reduce(
     (sum, inv) => sum.plus(inv.amountPaid),
-    new prisma.Prisma.Decimal(0)
+    new Prisma.Decimal(0)
   );
 
   if (paidTotal.gt(0) && !force) {
