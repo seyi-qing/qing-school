@@ -5,6 +5,7 @@ import { homeRouteForRole } from "@/lib/permissions";
 import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { formatDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,6 @@ export default async function AuditLogPage() {
   }
 
   const schoolId = await resolveSchoolId(session);
-  // School admins only see their school; platform admin sees everything
   const where =
     session.role === "PLATFORM_ADMIN" ? {} : schoolWhere(schoolId);
 
@@ -55,7 +55,7 @@ export default async function AuditLogPage() {
           <tbody>
             {logs.map((l) => (
               <tr key={l.id}>
-                <td className="whitespace-nowrap">{l.createdAt.toLocaleString("en-NG")}</td>
+                <td className="whitespace-nowrap">{formatDateTime(l.createdAt)}</td>
                 <td>
                   {l.user?.email ?? "-"}
                   {l.user?.role && (
@@ -90,8 +90,8 @@ export default async function AuditLogPage() {
         </table>
       </div>
       <p className="text-xs text-ink/50 mt-3">
-        Older rows may still show <code>schoolId: null</code> in Details — that is a snapshot from
-        before tenant backfill. New actions record the real school.
+        Older rows may still show <code>schoolId: null</code> in Details — snapshot from before
+        backfill. New actions record the real school and full time.
       </p>
     </PortalShell>
   );
