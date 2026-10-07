@@ -4,7 +4,11 @@ import { jwtVerify } from "jose";
 
 const PUBLIC_PATHS = [
   "/login",
+  "/forgot-password",
+  "/reset-password",
   "/api/auth/login",
+  "/api/auth/request-password-reset",
+  "/api/auth/reset-password",
   "/api/result-checker",
   "/api/setup",
   "/api/admissions",
@@ -18,7 +22,6 @@ const PUBLIC_PATHS = [
   "/pay",
   "/p",
   "/onboarding",
-  "/api/onboarding",
 ];
 
 const PORTAL_RULES: Array<{ prefix: string; roles: string[] }> = [

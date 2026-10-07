@@ -179,7 +179,6 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 function sectionFor(item: NavItem): string {
-  if (item.section) return item.section;
   if (["/students","/staff","/leave"].some(p => item.href === p)) return "People";
   if (["/classes","/timetable","/attendance","/exams","/cbt","/reports"].some(p => item.href === p)) return "Academics";
   if (["/fees","/fees/structure","/expenses","/payroll"].some(p => item.href === p)) return "Finance";

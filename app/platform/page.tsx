@@ -2,16 +2,16 @@ import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ensureDefaultSchool, backfillSchoolIds } from "@/lib/tenant";
 import { PlatformBillingForm } from "@/components/PlatformBillingForm";
 import { isSubscriptionLive, PLAN_LIMITS } from "@/lib/integrations/subscriptions";
 import { PortalShell } from "@/components/PortalShell";
+import { ensureDefaultSchool, backfillSchoolIds } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlatformPage() {
   const session = await requireSession();
-  if (!["PLATFORM_ADMIN", "ADMIN", "IT"].includes(session.role)) {
+  if (session.role !== "PLATFORM_ADMIN") {
     redirect("/dashboard");
   }
 

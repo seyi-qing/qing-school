@@ -57,7 +57,7 @@ export default async function StaffPage() {
             designation: s.designation,
             category: s.category,
             phone: s.phone,
-            monthlySalary: s.monthlySalary,
+            monthlySalary: s.monthlySalary === null ? null : Number(s.monthlySalary),
             isActive: s.isActive && s.user.isActive,
             email: s.user.email,
             role: s.user.role,

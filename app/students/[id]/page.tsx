@@ -112,7 +112,7 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
             fullName={`${student.firstName} ${student.lastName}`}
             status={student.status}
             isAdmin={["ADMIN", "IT"].includes(session.role)}
-            hasPaidFees={student.invoices.some((inv) => inv.amountPaid > 0)}
+            hasPaidFees={student.invoices.some((inv) => inv.amountPaid.gt(0))}
           />
         </div>
       )}

@@ -5,7 +5,7 @@ import { getSession, hashPassword } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 import { validatePassword, passwordPolicyHint } from "@/lib/password-policy";
-import { resolveSchoolId, schoolWhere, assertStaffInTenant } from "@/lib/tenant-scope";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 
 const CreateStaffSchema = z.object({
   firstName: z.string().min(1),
@@ -64,10 +64,17 @@ export async function PATCH(req: Request) {
     if (!check.ok) {
       return NextResponse.json({ error: check.message, hint: passwordPolicyHint() }, { status: 400 });
     }
-    const schoolIdReset = await resolveSchoolId(session); if (!schoolIdReset) return NextResponse.json({ error: "School context required" }, { status: 409 }); const staff = await prisma.staff.findFirst({ where: { id: body.staffId, schoolId: schoolIdReset } });
+
+    const schoolIdReset = await resolveSchoolId(session);
+    if (!schoolIdReset) {
+      return NextResponse.json({ error: "School context required" }, { status: 409 });
+    }
+
+    const staff = await prisma.staff.findFirst({
+      where: { id: body.staffId, schoolId: schoolIdReset },
+    });
     if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
-    const g = { ok: true as const };
-    if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status });
+
     const passwordHash = await hashPassword(newPassword);
     await prisma.user.update({
       where: { id: staff.userId },
@@ -87,9 +94,15 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid data" }, { status: 400 });
   }
 
-  const schoolIdPatch = await resolveSchoolId(session); if (!schoolIdPatch) return NextResponse.json({ error: "School context required" }, { status: 409 }); const staff = await prisma.staff.findFirst({ where: { id: parsed.data.id, schoolId: schoolIdPatch } });
-  if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
+  const schoolIdPatch = await resolveSchoolId(session);
+  if (!schoolIdPatch) {
+    return NextResponse.json({ error: "School context required" }, { status: 409 });
+  }
 
+  const staff = await prisma.staff.findFirst({
+    where: { id: parsed.data.id, schoolId: schoolIdPatch },
+  });
+  if (!staff) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
 
   const data = parsed.data;
   const updated = await prisma.$transaction(async (tx) => {

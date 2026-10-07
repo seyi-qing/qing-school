@@ -5,8 +5,6 @@ import { hashPassword } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const DEMO_PASSWORD = "Password123!";
-
 const ACCOUNTS: Array<{
   email: string;
   legacyEmail: string;
@@ -51,6 +49,7 @@ export async function GET(req: NextRequest) {
   if (process.env.NODE_ENV === "production" || process.env.ALLOW_SETUP_SEED !== "true") {
     return NextResponse.json({ ok: false, error: "Setup seed is disabled." }, { status: 404 });
   }
+
   const secret = req.nextUrl.searchParams.get("secret");
   const expected = process.env.SETUP_SECRET;
 
@@ -64,15 +63,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Invalid secret" }, { status: 401 });
   }
 
-  const allow = process.env.ALLOW_SETUP_SEED;
-  if (allow === "false" || allow === "0") {
+  const seedPassword = process.env.SETUP_SEED_PASSWORD;
+  if (!seedPassword || seedPassword.length < 12) {
     return NextResponse.json(
-      {
-        ok: false,
-        error:
-          "Setup seed is disabled (ALLOW_SETUP_SEED=false). Re-enable temporarily in Vercel env to migrate, then disable again.",
-      },
-      { status: 403 }
+      { ok: false, error: "SETUP_SEED_PASSWORD is not configured." },
+      { status: 503 }
     );
   }
 
@@ -82,14 +77,14 @@ export async function GET(req: NextRequest) {
       {
         ok: false,
         error:
-          "Add &confirm=MIGRATE to the URL to run seed (one-time account migration). Example: /api/setup/seed?secret=...&confirm=MIGRATE",
+          "Add &confirm=MIGRATE to the URL to run seed (one-time account migration).",
       },
       { status: 400 }
     );
   }
 
   try {
-    const passwordHash = await hashPassword(DEMO_PASSWORD);
+    const passwordHash = await hashPassword(seedPassword);
     const users: Record<string, { id: string; email: string; role: string }> = {};
 
     for (const acc of ACCOUNTS) {
@@ -97,7 +92,6 @@ export async function GET(req: NextRequest) {
       users[acc.role] = u;
     }
 
-    // Session unique is (schoolId, name) — cannot upsert by name alone
     let session = await prisma.session.findFirst({ where: { name: "2025/2026" } });
     if (!session) {
       session = await prisma.session.create({
@@ -249,7 +243,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       message: "KMS seed complete — accounts migrated to @kms.sch.ng",
-      password: undefined,
       accounts: ACCOUNTS.map((a) => `${a.role}: ${a.email}`),
       studentAdmission: student.admissionNumber,
       linked: {

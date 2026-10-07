@@ -25,7 +25,7 @@ const SubscribeSchema = z.object({
 
 export async function GET() {
   const session = await getSession();
-  if (!session || !["PLATFORM_ADMIN", "ADMIN", "IT"].includes(session.role)) {
+  if (!session || session.role !== "PLATFORM_ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const schools = await prisma.school.findMany({

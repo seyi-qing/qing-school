@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { hashPassword } from "@/lib/auth";
+import { hashPassword, getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { validatePassword } from "@/lib/password-policy";
 
@@ -18,6 +18,10 @@ const OnboardSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const session = await getSession();
+  if (!session || session.role !== "PLATFORM_ADMIN") {
+    return NextResponse.json({ error: "Platform administrator access required." }, { status: 403 });
+  }
   const body = await req.json().catch(() => null);
   const parsed = OnboardSchema.safeParse(body);
   if (!parsed.success) {

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { PortalShell } from "@/components/PortalShell";
@@ -18,9 +19,9 @@ export default async function ExpensesPage() {
     prisma.expenseRecord.aggregate({ _sum: { amount: true } }),
   ]);
 
-  const income = incomeAgg._sum.amount ?? 0;
-  const expenseTotal = expenseAgg._sum.amount ?? 0;
-  const net = income - expenseTotal;
+  const income = incomeAgg._sum.amount ?? new Prisma.Decimal(0);
+  const expenseTotal = expenseAgg._sum.amount ?? new Prisma.Decimal(0);
+  const net = income.sub(expenseTotal);
 
   return (
     <PortalShell role={session.role} title="Expenses" subtitle="School spending and simple P&amp;L">
@@ -35,7 +36,7 @@ export default async function ExpensesPage() {
         </div>
         <div className="ledger-block">
           <p className="text-xs uppercase text-ink/50">Net (income − expenses)</p>
-          <p className={`ledger-number text-2xl mt-1 ${net >= 0 ? "text-sage" : "text-brick"}`}>
+          <p className={`ledger-number text-2xl mt-1 ${net.gte(0) ? "text-sage" : "text-brick"}`}>
             {formatNaira(net)}
           </p>
         </div>

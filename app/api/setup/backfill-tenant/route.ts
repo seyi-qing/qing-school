@@ -14,11 +14,7 @@ export async function POST() {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const allowed =
-    session.role === "PLATFORM_ADMIN" ||
-    can(session.role, "MANAGE_SYSTEM_SETTINGS") ||
-    session.role === "ADMIN" ||
-    session.role === "IT";
+  const allowed = session.role === "PLATFORM_ADMIN";
   if (!allowed) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -60,6 +56,6 @@ export async function GET() {
     nullStudents,
     nullStaff,
     nullUsers,
-    tip: "POST this route as Admin to assign null rows to KMS.",
+    tip: "This diagnostic is available to authenticated users; tenant backfill is platform-admin only.",
   });
 }

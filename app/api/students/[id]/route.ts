@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
@@ -9,8 +10,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const student = await prisma.student.findUnique({
-    where: { id: params.id },
+  const schoolId = await resolveSchoolId(session);
+  if (!schoolId) return NextResponse.json({ error: "School context required" }, { status: 409 });
+
+  const student = await prisma.student.findFirst({
+    where: { id: params.id, schoolId },
     include: {
       arm: { include: { schoolClass: true } },
       invoices: { include: { payments: true }, orderBy: { createdAt: "desc" } },
@@ -21,11 +25,6 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   });
 
   if (!student) return NextResponse.json({ error: "Student not found" }, { status: 404 });
-
-  const schoolId = await resolveSchoolId(session);
-  if (schoolId && student.schoolId && student.schoolId !== schoolId) {
-    return NextResponse.json({ error: "Student not found" }, { status: 404 });
-  }
 
   if (session.role === "STUDENT") {
     const owns = await prisma.student.findFirst({ where: { id: params.id, userId: session.userId } });
@@ -93,7 +92,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   return NextResponse.json({ student });
 }
 
-/** Permanent delete — Admin/IT only. Requires matching admission number. */
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   const session = await getSession();
   if (!session || !["ADMIN", "IT"].includes(session.role)) {
@@ -112,8 +110,8 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     typeof body.confirmAdmissionNumber === "string" ? body.confirmAdmissionNumber.trim() : "";
   const force = body.force === true;
 
-  const student = await prisma.student.findUnique({
-    where: { id: params.id },
+  const student = await prisma.student.findFirst({
+    where: { id: params.id, schoolId: schoolIdDel },
     include: {
       invoices: { select: { amountPaid: true, totalAmount: true } },
       _count: {
@@ -141,13 +139,17 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     );
   }
 
-  const paidTotal = student.invoices.reduce((s, inv) => s + (inv.amountPaid || 0), 0);
-  if (paidTotal > 0 && !force) {
+  const paidTotal = student.invoices.reduce(
+    (sum, inv) => sum.plus(inv.amountPaid),
+    new Prisma.Decimal(0)
+  );
+
+  if (paidTotal.gt(0) && !force) {
     return NextResponse.json(
       {
         error:
           "Student has fee payments on record. Use Withdraw instead, or pass force: true for duplicate cleanup.",
-        amountPaid: paidTotal,
+        amountPaid: paidTotal.toString(),
       },
       { status: 409 }
     );
@@ -157,7 +159,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     admissionNumber: student.admissionNumber,
     name: `${student.firstName} ${student.lastName}`,
     status: student.status,
-    paidTotal,
+    paidTotal: paidTotal.toString(),
     counts: student._count,
   };
 

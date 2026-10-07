@@ -48,6 +48,13 @@ export async function POST(req: Request) {
 
     const { invoiceId, amount, provider, email } = parsed.data;
     const checkoutSession = await getSession();
+    if (!checkoutSession?.schoolId) {
+      return NextResponse.json(
+        { error: "Sign in through your school account before starting a payment." },
+        { status: 401 }
+      );
+    }
+
     const invoice = await prisma.invoice.findUnique({
       where: { id: invoiceId, ...(checkoutSession?.schoolId ? { schoolId: checkoutSession.schoolId } : {}) },
       include: { student: true },
@@ -112,7 +119,7 @@ export async function POST(req: Request) {
 
   const { invoiceId, amount, method } = parsed.data;
   const reference = `MANUAL-${Date.now()}`;
-  const payment = await applyManualPayment(invoiceId, amount, method, reference, session.userId);
+  const payment = await applyManualPayment(invoiceId, amount, method, reference, session.userId, session.schoolId ?? "");
 
   await logAudit({
     userId: session.userId,

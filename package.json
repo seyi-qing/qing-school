@@ -14,7 +14,7 @@
     "db:studio": "prisma studio",
     "setup": "npm install && prisma generate && prisma migrate deploy",
     "test": "vitest run",
-    "test:unit": "vitest run lib/tenant-scope.test.ts lib/permissions.test.ts",
+    "test:unit": "tsx lib/permissions.test.ts && tsx lib/tenant-scope.test.ts",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:status": "prisma migrate status",

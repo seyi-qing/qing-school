@@ -5,18 +5,26 @@ import { uploadFile } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
+function allowed(role: string) {
+  return ["ADMIN", "IT", "SECRETARY"].includes(role);
+}
+
 export async function GET() {
   const session = await getSession();
-  if (!session || !["ADMIN", "IT", "SECRETARY"].includes(session.role)) {
+  if (!session?.schoolId || !allowed(session.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const assets = await prisma.mediaAsset.findMany({ orderBy: { createdAt: "desc" }, take: 100 });
+  const assets = await prisma.mediaAsset.findMany({
+    where: { schoolId: session.schoolId },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
   return NextResponse.json({ assets });
 }
 
 export async function POST(req: Request) {
   const session = await getSession();
-  if (!session || !["ADMIN", "IT", "SECRETARY"].includes(session.role)) {
+  if (!session?.schoolId || !allowed(session.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -34,6 +42,7 @@ export async function POST(req: Request) {
 
   const asset = await prisma.mediaAsset.create({
     data: {
+      schoolId: session.schoolId,
       url: result.url,
       filename: file.name,
       mimeType: file.type || null,
@@ -47,11 +56,13 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   const session = await getSession();
-  if (!session || !["ADMIN", "IT"].includes(session.role)) {
+  if (!session?.schoolId || !["ADMIN", "IT"].includes(session.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
-  await prisma.mediaAsset.delete({ where: { id } });
+  const asset = await prisma.mediaAsset.findFirst({ where: { id, schoolId: session.schoolId } });
+  if (!asset) return NextResponse.json({ error: "Media asset not found" }, { status: 404 });
+  await prisma.mediaAsset.delete({ where: { id: asset.id } });
   return NextResponse.json({ ok: true });
 }

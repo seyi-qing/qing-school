@@ -50,7 +50,7 @@ export default async function FeeStructurePage() {
           items={items.map((i) => ({
             id: i.id,
             name: i.name,
-            amount: i.amount,
+            amount: Number(i.amount),
             compulsory: i.compulsory,
             armId: i.armId,
             termId: i.termId,

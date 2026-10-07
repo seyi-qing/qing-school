@@ -45,7 +45,7 @@ export default async function TransportPage() {
           vehicle: r.vehicle,
           driverName: r.driverName,
           driverPhone: r.driverPhone,
-          feeAmount: r.feeAmount,
+          feeAmount: Number(r.feeAmount),
           feeLabel: formatNaira(r.feeAmount),
           riders: r.enrollments.map((e) => ({
             id: e.id,

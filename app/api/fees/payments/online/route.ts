@@ -13,23 +13,28 @@ const InitiateSchema = z.object({
 
 export async function POST(req: Request) {
   const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.schoolId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
   const parsed = InitiateSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  }
+  if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   const { invoiceId, amount, provider, email } = parsed.data;
 
-  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: invoiceId, schoolId: session.schoolId },
+  });
   if (!invoice) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
+
+  const remaining = Number(invoice.totalAmount) - Number(invoice.amountPaid);
+  if (amount > remaining + 0.01) {
+    return NextResponse.json({ error: "Amount exceeds balance." }, { status: 400 });
+  }
 
   const { authorizationUrl, reference } = await initializePayment({
     provider,
     amountNaira: amount,
     email,
-    metadata: { invoiceId },
+    metadata: { invoiceId, schoolId: session.schoolId },
   });
 
   await prisma.payment.create({
@@ -40,6 +45,7 @@ export async function POST(req: Request) {
       method: provider,
       reference,
       status: "PENDING",
+      schoolId: session.schoolId,
     },
   });
 

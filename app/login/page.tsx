@@ -96,6 +96,9 @@ function LoginForm() {
               className="w-full border border-line bg-white px-3 py-2.5 text-sm focus:border-navy outline-none"
             />
           </div>
+          <div className="text-right -mb-1">
+            <Link href="/forgot-password" className="text-xs underline hover:text-navy">Forgot password?</Link>
+          </div>
           <button
             type="submit"
             disabled={loading}
