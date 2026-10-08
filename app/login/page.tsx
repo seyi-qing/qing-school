@@ -118,9 +118,10 @@ function LoginForm() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-ink/50 mt-6">
+        <p className="text-center text-xs text-ink/40 mt-6 space-y-1">
+          <span className="block">Staff, parent &amp; student portal only.</span>
           <Link href="/" className="underline hover:text-navy">
-            ← Back to {SCHOOL.shortName} home
+            Public school website →
           </Link>
         </p>
       </div>

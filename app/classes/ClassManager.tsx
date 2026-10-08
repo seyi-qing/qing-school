@@ -26,6 +26,9 @@ export function ClassManager({
   const [newSubject, setNewSubject] = useState({ subjectName: "", code: "" });
   const [assign, setAssign] = useState({ armId: "", subjectId: "" });
   const [promote, setPromote] = useState({ fromArmId: "", toArmId: "" });
+  const [confirm, setConfirm] = useState<{ kind: "class" | "arm" | "subject"; id: string; label: string } | null>(
+    null
+  );
 
   const allArms = classes.flatMap((c) =>
     c.arms.map((a) => ({ ...a, className: c.name }))
@@ -39,6 +42,24 @@ export function ClassManager({
     });
     const data = await res.json().catch(() => ({}));
     return { ok: res.ok, data };
+  }
+
+  async function del(kind: "class" | "arm" | "subject", id: string) {
+    setBusy(true);
+    const res = await fetch("/api/classes", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, id }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setBusy(false);
+    setConfirm(null);
+    if (!res.ok) {
+      toast(data.error || "Delete failed", "error");
+      return;
+    }
+    toast("Deleted", "success");
+    router.refresh();
   }
 
   async function addClass() {
@@ -123,41 +144,108 @@ export function ClassManager({
   return (
     <div className="grid md:grid-cols-3 gap-6">
       <div className="md:col-span-2 space-y-4">
-        {classes.map((c) => (
-          <div key={c.id} className="ledger-block">
-            <h3 className="font-serif text-lg mb-2">{c.name}</h3>
-            <ul className="text-sm space-y-1">
-              {c.arms.map((a) => (
-                <li key={a.id} className="flex justify-between">
-                  <span>Arm {a.name}</span>
-                  <span className="text-ink/50">{a.studentCount} students</span>
-                </li>
-              ))}
-              {c.arms.length === 0 && <li className="text-ink/50">No arms yet.</li>}
-            </ul>
-          </div>
-        ))}
+        {classes.map((c) => {
+          const totalStudents = c.arms.reduce((n, a) => n + a.studentCount, 0);
+          return (
+            <div key={c.id} className="ledger-block">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <h3 className="font-serif text-lg">{c.name}</h3>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    setConfirm({ kind: "class", id: c.id, label: c.name })
+                  }
+                  className="text-xs text-brick border border-brick/40 px-2 py-1 hover:bg-brick hover:text-paper shrink-0 disabled:opacity-50"
+                  title={totalStudents > 0 ? "Blocked while students are assigned" : "Delete empty class"}
+                >
+                  Delete
+                </button>
+              </div>
+              <ul className="text-sm space-y-1">
+                {c.arms.map((a) => (
+                  <li key={a.id} className="flex justify-between items-center gap-2">
+                    <span>
+                      Arm {a.name}
+                      <span className="text-ink/50 ml-2">{a.studentCount} students</span>
+                    </span>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        setConfirm({ kind: "arm", id: a.id, label: `${c.name} · ${a.name}` })
+                      }
+                      className="text-[11px] text-brick/80 underline hover:text-brick disabled:opacity-50"
+                    >
+                      Delete arm
+                    </button>
+                  </li>
+                ))}
+                {c.arms.length === 0 && <li className="text-ink/50">No arms yet.</li>}
+              </ul>
+            </div>
+          );
+        })}
         {classes.length === 0 && <p className="text-ink/50">No classes yet.</p>}
+
         <div className="ledger-block">
           <h3 className="font-serif text-lg mb-2">Subjects catalogue</h3>
           {subjects.length === 0 ? (
             <p className="text-sm text-ink/50">No subjects yet. Add English, Maths, etc. on the right.</p>
           ) : (
-            <ul className="text-sm grid sm:grid-cols-2 gap-1">
+            <ul className="text-sm space-y-1">
               {subjects.map((s) => (
-                <li key={s.id} className="border border-line px-2 py-1.5">
-                  {s.name}
+                <li
+                  key={s.id}
+                  className="border border-line px-2 py-1.5 flex items-center justify-between gap-2"
+                >
+                  <span className="min-w-0 truncate">{s.name}</span>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setConfirm({ kind: "subject", id: s.id, label: s.name })}
+                    className="text-[11px] text-brick/80 underline hover:text-brick shrink-0 disabled:opacity-50"
+                  >
+                    Delete
+                  </button>
                 </li>
               ))}
             </ul>
           )}
           <p className="text-xs text-ink/50 mt-3">
             After adding a subject, <strong>assign it to an arm</strong> so teachers can enter scores for that class.
+            Delete is blocked if scores already exist.
           </p>
         </div>
       </div>
 
       <div className="space-y-4">
+        {confirm && (
+          <div className="ledger-block border-brick/40 bg-brick/5 space-y-2 text-sm">
+            <p className="text-ink/80">
+              Delete <strong>{confirm.label}</strong>? This cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => del(confirm.kind, confirm.id)}
+                className="bg-brick text-paper px-3 py-1.5 disabled:opacity-50"
+              >
+                {busy ? "…" : "Confirm delete"}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setConfirm(null)}
+                className="underline text-ink/60"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="ledger-block">
           <h3 className="font-serif mb-2">Add Subject</h3>
           <input
