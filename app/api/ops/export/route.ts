@@ -2,35 +2,45 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 
 /** Lightweight operational snapshot for backup drills (not a full pg_dump). */
 export async function GET() {
   const session = await getSession();
-  if (!session || !["ADMIN", "IT"].includes(session.role)) {
+  if (!session || !["ADMIN", "IT", "PLATFORM_ADMIN"].includes(session.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const schoolId = await resolveSchoolId(session);
+  const sw = schoolWhere(schoolId);
+
   const [students, staff, invoices, payments, terms, classes] = await Promise.all([
-    prisma.student.count(),
-    prisma.staff.count(),
-    prisma.invoice.count(),
-    prisma.payment.count(),
-    prisma.term.findMany({ select: { id: true, name: true, isCurrent: true } }),
+    prisma.student.count({ where: sw }),
+    prisma.staff.count({ where: sw }),
+    prisma.invoice.count({ where: schoolId ? { student: { schoolId } } : {} }),
+    prisma.payment.count({ where: schoolId ? { student: { schoolId } } : {} }),
+    prisma.term.findMany({
+      where: schoolId ? { session: { schoolId } } : {},
+      select: { id: true, name: true, isCurrent: true },
+    }),
     prisma.schoolClass.findMany({
+      where: sw,
       select: { id: true, name: true, arms: { select: { id: true, name: true } } },
     }),
   ]);
 
   const snapshot = {
     exportedAt: new Date().toISOString(),
+    schoolId: schoolId ?? null,
     counts: { students, staff, invoices, payments },
     terms,
     classes,
-    note: "This is a metadata snapshot for ops drills. Use Postgres host backups (Neon/Supabase) for full restore.",
+    note: "Metadata snapshot for ops drills. Use Neon branch backups for full restore.",
   };
 
   await logAudit({
     userId: session.userId,
+    schoolId: schoolId ?? undefined,
     action: "OPS_EXPORT_SNAPSHOT",
     entity: "System",
     details: { counts: snapshot.counts },

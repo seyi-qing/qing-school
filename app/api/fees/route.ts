@@ -46,9 +46,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid data" }, { status: 400 });
   }
 
+  const schoolId = await resolveSchoolId(session);
+  const arm = await prisma.arm.findUnique({
+    where: { id: parsed.data.armId },
+    include: { schoolClass: { select: { schoolId: true } } },
+  });
+  if (!arm) return NextResponse.json({ error: "Class arm not found" }, { status: 404 });
+  if (schoolId && arm.schoolClass.schoolId && arm.schoolClass.schoolId !== schoolId) {
+    return NextResponse.json({ error: "Class arm not found" }, { status: 404 });
+  }
+
   const item = await prisma.feeItem.create({ data: parsed.data });
 
-  await logAudit({ userId: session.userId, action: "CREATE_FEE_ITEM", entity: "FeeItem", entityId: item.id });
+  await logAudit({
+    userId: session.userId,
+    schoolId: schoolId ?? undefined,
+    action: "CREATE_FEE_ITEM",
+    entity: "FeeItem",
+    entityId: item.id,
+  });
 
   return NextResponse.json({ item }, { status: 201 });
 }

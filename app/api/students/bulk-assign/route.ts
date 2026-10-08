@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
+import { resolveSchoolId } from "@/lib/tenant-scope";
 
 const Schema = z.object({
   studentIds: z.array(z.string().min(1)).min(1).max(100),
@@ -23,22 +24,45 @@ export async function POST(req: Request) {
   }
 
   const { studentIds, armId } = parsed.data;
+  const schoolId = await resolveSchoolId(session);
 
   if (armId) {
-    const arm = await prisma.arm.findUnique({ where: { id: armId } });
+    const arm = await prisma.arm.findUnique({
+      where: { id: armId },
+      include: { schoolClass: { select: { schoolId: true } } },
+    });
     if (!arm) return NextResponse.json({ error: "Class arm not found" }, { status: 404 });
+    if (schoolId && arm.schoolClass.schoolId && arm.schoolClass.schoolId !== schoolId) {
+      return NextResponse.json({ error: "Class arm not found" }, { status: 404 });
+    }
+  }
+
+  if (schoolId) {
+    const owned = await prisma.student.count({
+      where: { id: { in: studentIds }, schoolId },
+    });
+    if (owned !== studentIds.length) {
+      return NextResponse.json(
+        { error: "One or more students are outside your school." },
+        { status: 403 }
+      );
+    }
   }
 
   const result = await prisma.student.updateMany({
-    where: { id: { in: studentIds } },
+    where: {
+      id: { in: studentIds },
+      ...(schoolId ? { schoolId } : {}),
+    },
     data: { armId: armId || null },
   });
 
   await logAudit({
     userId: session.userId,
+    schoolId: schoolId ?? undefined,
     action: "BULK_ASSIGN_CLASS",
     entity: "Student",
-    details: { count: result.count, armId, studentIds },
+    details: { count: result.count, armId },
   });
 
   return NextResponse.json({ ok: true, updated: result.count });
