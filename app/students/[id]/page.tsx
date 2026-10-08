@@ -7,6 +7,7 @@ import { StudentEditForm } from "@/components/StudentEditForm";
 import { StudentLifecycleActions } from "@/components/StudentLifecycleActions";
 import { can } from "@/lib/permissions";
 import { formatNaira, formatDate } from "@/lib/format";
+import { toMoney } from "@/lib/money";
 import { notFound, redirect } from "next/navigation";
 import { resolveSchoolId } from "@/lib/tenant-scope";
 
@@ -71,6 +72,7 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
       role={session.role}
       title={`${student.firstName} ${student.lastName}`}
       subtitle={`${student.admissionNumber} · ${classLabel} · ${student.status}`}
+      email={session.email}
       actions={
         <div className="flex flex-wrap gap-2">
           <a
@@ -112,7 +114,7 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
             fullName={`${student.firstName} ${student.lastName}`}
             status={student.status}
             isAdmin={["ADMIN", "IT"].includes(session.role)}
-            hasPaidFees={student.invoices.some((inv) => inv.amountPaid > 0)}
+            hasPaidFees={student.invoices.some((inv) => toMoney(inv.amountPaid) > 0)}
           />
         </div>
       )}
