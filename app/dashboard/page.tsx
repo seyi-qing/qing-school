@@ -10,7 +10,6 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-/** Role-based command center for staff roles. */
 export default async function DashboardPage() {
   const session = await requireSession();
 
@@ -78,7 +77,12 @@ export default async function DashboardPage() {
   const isSecretary = session.role === "SECRETARY";
 
   return (
-    <PortalShell role={session.role} title="Dashboard" subtitle={`Welcome back, ${session.email}`}>
+    <PortalShell
+      role={session.role}
+      title="Dashboard"
+      subtitle={`Welcome back, ${session.email}`}
+      email={session.email}
+    >
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <StatBlock label="Active Students" value={studentCount.toLocaleString()} />
         <StatBlock label="Staff on Roll" value={staffCount.toLocaleString()} />
@@ -129,7 +133,7 @@ export default async function DashboardPage() {
             {attendancePct === null && (
               <li>
                 <Link href="/attendance" className="text-navy underline">
-                  Today's attendance not taken
+                  Today&apos;s attendance not taken
                 </Link>
               </li>
             )}
@@ -162,7 +166,7 @@ export default async function DashboardPage() {
               session.role === "IT" ||
               session.role === "PLATFORM_ADMIN") && (
               <Link href="/attendance" className="text-navy underline hover:text-gold py-1">
-                Take today's attendance
+                Take today&apos;s attendance
               </Link>
             )}
             {(session.role === "ADMIN" ||

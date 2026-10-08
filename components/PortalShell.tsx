@@ -2,30 +2,26 @@
 
 import { useState } from "react";
 import type { Role } from "@prisma/client";
-import { useRouter } from "next/navigation";
 import { Sidebar } from "./Sidebar";
+import { UserMenu } from "./UserMenu";
 
 export function PortalShell({
   role,
   title,
   subtitle,
+  email,
   actions,
   children,
 }: {
   role: Role;
   title: string;
   subtitle?: string;
+  /** Session email for account menu */
+  email?: string;
   actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const router = useRouter();
-
-  async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
-  }
 
   return (
     <div className="flex min-h-screen bg-paper">
@@ -48,7 +44,6 @@ export function PortalShell({
       )}
 
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Stack on mobile so title never becomes one-letter-per-line */}
         <header className="border-b border-line bg-paper px-4 sm:px-6 lg:px-8 py-3 sm:py-4 no-print sticky top-0 z-30">
           <div className="flex items-start gap-3">
             <button
@@ -72,13 +67,7 @@ export function PortalShell({
                     <p className="text-xs sm:text-sm text-ink/60 mt-0.5 break-words">{subtitle}</p>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={logout}
-                  className="lg:hidden shrink-0 text-xs border border-line px-2.5 py-1.5 text-ink/70 hover:border-navy"
-                >
-                  Sign out
-                </button>
+                <UserMenu email={email} />
               </div>
 
               {actions && (
