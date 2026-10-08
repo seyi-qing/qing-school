@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { notFound } from "next/navigation";
 import { formatNaira } from "@/lib/format";
+import { toMoney } from "@/lib/money";
 import { OfficialLetterhead, OfficialStampArea } from "@/components/OfficialLetterhead";
 import { getBrandingForSchoolId } from "@/lib/branding";
 import Link from "next/link";
@@ -26,7 +27,7 @@ export default async function PaymentReceiptPage({ params }: { params: { id: str
   const classLabel = payment.student.arm
     ? `${payment.student.arm.schoolClass.name} ${payment.student.arm.name}`
     : "-";
-  const balance = payment.invoice.totalAmount - payment.invoice.amountPaid;
+  const balance = toMoney(payment.invoice.totalAmount) - toMoney(payment.invoice.amountPaid);
 
   return (
     <div className="max-w-lg mx-auto p-6 sm:p-10 font-sans text-ink report-card-print">

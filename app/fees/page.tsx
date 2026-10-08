@@ -2,31 +2,43 @@ import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { PortalShell } from "@/components/PortalShell";
 import { formatNaira } from "@/lib/format";
+import { toMoney } from "@/lib/money";
 import { CollectPaymentForm } from "./CollectPaymentForm";
 import { FeeReminderButton } from "./FeeReminderButton";
 import { redirect } from "next/navigation";
 import { homeRouteForRole } from "@/lib/permissions";
 import Link from "next/link";
+import { resolveSchoolId } from "@/lib/tenant-scope";
 
 export const dynamic = "force-dynamic";
 
-const ALLOWED_ROLES = ["ADMIN", "ACCOUNTANT", "SECRETARY"];
+const ALLOWED_ROLES = ["ADMIN", "ACCOUNTANT", "SECRETARY", "PLATFORM_ADMIN", "IT"];
 
 export default async function FeesPage() {
   const session = await requireSession();
   if (!ALLOWED_ROLES.includes(session.role)) redirect(homeRouteForRole(session.role));
 
+  const schoolId = await resolveSchoolId(session);
+  const invWhere = schoolId ? { student: { schoolId } } : {};
+
   const [invoices, totalCollected, allInvoices] = await Promise.all([
     prisma.invoice.findMany({
+      where: invWhere,
       include: { student: true },
       orderBy: { createdAt: "desc" },
       take: 100,
     }),
-    prisma.invoice.aggregate({ _sum: { amountPaid: true } }),
-    prisma.invoice.findMany(),
+    prisma.invoice.aggregate({
+      where: invWhere,
+      _sum: { amountPaid: true },
+    }),
+    prisma.invoice.findMany({ where: invWhere }),
   ]);
 
-  const outstanding = allInvoices.reduce((s, i) => s + (i.totalAmount - i.amountPaid), 0);
+  const outstanding = allInvoices.reduce(
+    (s, i) => s + (toMoney(i.totalAmount) - toMoney(i.amountPaid)),
+    0
+  );
   const debtors = allInvoices.filter((i) => i.status !== "PAID");
 
   return (
@@ -34,6 +46,7 @@ export default async function FeesPage() {
       role={session.role}
       title="Fees & Accounts"
       subtitle="Invoices, payments and debtors"
+      email={session.email}
       actions={
         <>
           <Link
@@ -85,40 +98,38 @@ export default async function FeesPage() {
             </tr>
           </thead>
           <tbody>
-            {invoices.map((inv) => (
-              <tr key={inv.id}>
-                <td>
-                  {inv.student.lastName}, {inv.student.firstName}
-                  <div className="text-xs text-ink/50 font-mono">{inv.student.admissionNumber}</div>
-                </td>
-                <td>{formatNaira(inv.totalAmount)}</td>
-                <td>{formatNaira(inv.amountPaid)}</td>
-                <td className={inv.totalAmount - inv.amountPaid > 0 ? "text-brick" : ""}>
-                  {formatNaira(inv.totalAmount - inv.amountPaid)}
-                </td>
-                <td>
-                  <span
-                    className={`status-pill ${
-                      inv.status === "PAID"
-                        ? "text-sage"
-                        : inv.status === "PARTIAL"
-                          ? "text-gold-dark"
-                          : "text-brick"
-                    }`}
-                  >
-                    {inv.status}
-                  </span>
-                </td>
-                <td>
-                  {inv.status !== "PAID" && (
-                    <CollectPaymentForm
-                      invoiceId={inv.id}
-                      maxAmount={inv.totalAmount - inv.amountPaid}
-                    />
-                  )}
-                </td>
-              </tr>
-            ))}
+            {invoices.map((inv) => {
+              const bal = toMoney(inv.totalAmount) - toMoney(inv.amountPaid);
+              return (
+                <tr key={inv.id}>
+                  <td>
+                    {inv.student.lastName}, {inv.student.firstName}
+                    <div className="text-xs text-ink/50 font-mono">{inv.student.admissionNumber}</div>
+                  </td>
+                  <td>{formatNaira(inv.totalAmount)}</td>
+                  <td>{formatNaira(inv.amountPaid)}</td>
+                  <td className={bal > 0 ? "text-brick" : ""}>{formatNaira(bal)}</td>
+                  <td>
+                    <span
+                      className={`status-pill ${
+                        inv.status === "PAID"
+                          ? "text-sage"
+                          : inv.status === "PARTIAL"
+                            ? "text-gold-dark"
+                            : "text-brick"
+                      }`}
+                    >
+                      {inv.status}
+                    </span>
+                  </td>
+                  <td>
+                    {inv.status !== "PAID" && (
+                      <CollectPaymentForm invoiceId={inv.id} maxAmount={bal} />
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
             {invoices.length === 0 && (
               <tr>
                 <td colSpan={6} className="text-center text-ink/50 py-8">

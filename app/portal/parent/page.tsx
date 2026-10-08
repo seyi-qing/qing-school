@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/require-session";
 import { PortalShell } from "@/components/PortalShell";
 import { PayOnlineButton } from "@/components/PayOnlineButton";
 import { formatNaira } from "@/lib/format";
+import { toMoney } from "@/lib/money";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -10,6 +11,10 @@ import { getBrandingForSchoolId } from "@/lib/branding";
 import { resolveSchoolId } from "@/lib/tenant-scope";
 
 export const dynamic = "force-dynamic";
+
+function invoiceBalance(total: unknown, paid: unknown) {
+  return toMoney(total) - toMoney(paid);
+}
 
 export default async function ParentPortalPage() {
   const session = await requireSession();
@@ -36,6 +41,7 @@ export default async function ParentPortalPage() {
       role={session.role}
       title="Family dashboard"
       subtitle={`${brand.shortName} · balances, attendance and notices for your children`}
+      email={session.email}
     >
       {links.length === 0 ? (
         <EmptyState
@@ -49,7 +55,10 @@ export default async function ParentPortalPage() {
               const totalBalance = links.reduce(
                 (sum, l) =>
                   sum +
-                  l.student.invoices.reduce((s, i) => s + (i.totalAmount - i.amountPaid), 0),
+                  l.student.invoices.reduce(
+                    (s, i) => s + invoiceBalance(i.totalAmount, i.amountPaid),
+                    0
+                  ),
                 0
               );
               const absences = links.reduce(
@@ -85,7 +94,10 @@ export default async function ParentPortalPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {links.map((link) => {
               const s = link.student;
-              const balance = s.invoices.reduce((sum, i) => sum + (i.totalAmount - i.amountPaid), 0);
+              const balance = s.invoices.reduce(
+                (sum, i) => sum + invoiceBalance(i.totalAmount, i.amountPaid),
+                0
+              );
               const lastAbsence = s.attendances.find((a) => a.status === "ABSENT");
               const unpaid = s.invoices.filter((i) => i.status !== "PAID");
               const classLabel = s.arm
@@ -134,7 +146,8 @@ export default async function ParentPortalPage() {
                         {unpaid.slice(0, 3).map((inv) => (
                           <li key={inv.id} className="flex justify-between gap-2">
                             <span className="text-ink/70 truncate">
-                              {inv.status} · {formatNaira(inv.totalAmount - inv.amountPaid)} due
+                              {inv.status} ·{" "}
+                              {formatNaira(invoiceBalance(inv.totalAmount, inv.amountPaid))} due
                             </span>
                           </li>
                         ))}
@@ -143,7 +156,10 @@ export default async function ParentPortalPage() {
                         {unpaid[0] && (
                           <PayOnlineButton
                             invoiceId={unpaid[0].id}
-                            maxAmount={unpaid[0].totalAmount - unpaid[0].amountPaid}
+                            maxAmount={invoiceBalance(
+                              unpaid[0].totalAmount,
+                              unpaid[0].amountPaid
+                            )}
                           />
                         )}
                       </div>

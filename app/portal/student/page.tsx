@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/require-session";
 import { PortalShell } from "@/components/PortalShell";
 import { PayOnlineButton } from "@/components/PayOnlineButton";
 import { formatNaira, formatDate } from "@/lib/format";
+import { toMoney } from "@/lib/money";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
@@ -24,7 +25,7 @@ export default async function StudentPortalPage() {
 
   if (!student) {
     return (
-      <PortalShell role={session.role} title="My Portal">
+      <PortalShell role={session.role} title="My Portal" email={session.email}>
         <p className="text-ink/60 text-sm">
           Your login isn&apos;t linked to a student profile yet. Ask the school office to link your
           account.
@@ -33,7 +34,10 @@ export default async function StudentPortalPage() {
     );
   }
 
-  const balance = student.invoices.reduce((s, i) => s + (i.totalAmount - i.amountPaid), 0);
+  const balance = student.invoices.reduce(
+    (s, i) => s + (toMoney(i.totalAmount) - toMoney(i.amountPaid)),
+    0
+  );
   const unpaid = student.invoices.filter((i) => i.status !== "PAID");
 
   return (
@@ -45,6 +49,7 @@ export default async function StudentPortalPage() {
           ? `${student.arm.schoolClass.name} ${student.arm.name} · ${student.admissionNumber}`
           : student.admissionNumber
       }
+      email={session.email}
     >
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div className="ledger-block">
@@ -68,7 +73,7 @@ export default async function StudentPortalPage() {
           <h2 className="font-serif text-lg mb-3">Pay fees online</h2>
           <ul className="space-y-3">
             {unpaid.map((inv) => {
-              const bal = inv.totalAmount - inv.amountPaid;
+              const bal = toMoney(inv.totalAmount) - toMoney(inv.amountPaid);
               return (
                 <li
                   key={inv.id}
