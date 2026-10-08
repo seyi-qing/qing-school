@@ -3,6 +3,8 @@ import { requireSession } from "@/lib/require-session";
 import { PortalShell } from "@/components/PortalShell";
 import { can, homeRouteForRole } from "@/lib/permissions";
 import { formatNaira, formatDate } from "@/lib/format";
+import { toMoney } from "@/lib/money";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 import { redirect } from "next/navigation";
 import { ExpenseForm } from "./ExpenseForm";
 
@@ -12,18 +14,39 @@ export default async function ExpensesPage() {
   const session = await requireSession();
   if (!can(session.role, "MANAGE_EXPENSES")) redirect(homeRouteForRole(session.role));
 
+  const schoolId = await resolveSchoolId(session);
+  const sw = schoolWhere(schoolId);
+
   const [expenses, incomeAgg, expenseAgg] = await Promise.all([
-    prisma.expenseRecord.findMany({ orderBy: { date: "desc" }, take: 100 }),
-    prisma.payment.aggregate({ where: { status: "SUCCESS" }, _sum: { amount: true } }),
-    prisma.expenseRecord.aggregate({ _sum: { amount: true } }),
+    prisma.expenseRecord.findMany({
+      where: sw,
+      orderBy: { date: "desc" },
+      take: 100,
+    }),
+    prisma.payment.aggregate({
+      where: {
+        status: "SUCCESS",
+        ...(schoolId ? { student: { schoolId } } : {}),
+      },
+      _sum: { amount: true },
+    }),
+    prisma.expenseRecord.aggregate({
+      where: sw,
+      _sum: { amount: true },
+    }),
   ]);
 
-  const income = incomeAgg._sum.amount ?? 0;
-  const expenseTotal = expenseAgg._sum.amount ?? 0;
-  const net = income - expenseTotal;
+  const income = toMoney(incomeAgg._sum.amount);
+  const expenseTotal = toMoney(expenseAgg._sum.amount);
+  const net = toMoney(income - expenseTotal);
 
   return (
-    <PortalShell role={session.role} title="Expenses" subtitle="School spending and simple P&amp;L">
+    <PortalShell
+      role={session.role}
+      title="Expenses"
+      subtitle="School spending and simple P&L"
+      email={session.email}
+    >
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
         <div className="ledger-block">
           <p className="text-xs uppercase text-ink/50">Fee income (recorded)</p>
