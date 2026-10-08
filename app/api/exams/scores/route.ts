@@ -36,6 +36,19 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "armSubjectId and termId are required." }, { status: 400 });
   }
 
+  const schoolId = await resolveSchoolId(session);
+  if (schoolId) {
+    const link = await prisma.armSubject.findUnique({
+      where: { id: armSubjectId },
+      include: { arm: { include: { schoolClass: { select: { schoolId: true } } } } },
+    });
+    if (!link) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const armSchool = link.arm.schoolClass.schoolId;
+    if (armSchool && armSchool !== schoolId) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+  }
+
   const scores = await prisma.score.findMany({ where: { armSubjectId, termId } });
   return NextResponse.json({ scores, limits: { ca1: CA1_MAX, ca2: CA2_MAX, exam: EXAM_MAX } });
 }
@@ -107,6 +120,7 @@ export async function POST(req: Request) {
 
   await logAudit({
     userId: session.userId,
+    schoolId: schoolId ?? undefined,
     action: "ENTER_SCORES",
     entity: "Score",
     details: { armSubjectId, termId, count: scores.length },

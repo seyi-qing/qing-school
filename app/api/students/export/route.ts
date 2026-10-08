@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 
 export async function GET(req: Request) {
   const session = await getSession();
@@ -9,11 +10,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const schoolId = await resolveSchoolId(session);
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status") || "ACTIVE";
 
   const students = await prisma.student.findMany({
-    where: { status },
+    where: { status, ...schoolWhere(schoolId) },
     include: { arm: { include: { schoolClass: true } } },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     take: 2000,

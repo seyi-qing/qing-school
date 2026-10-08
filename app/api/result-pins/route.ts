@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
+import { resolveSchoolId } from "@/lib/tenant-scope";
 
 function generatePinCode() {
   const part = () => Math.floor(100 + Math.random() * 900).toString();
@@ -15,6 +16,18 @@ const BulkSchema = z.object({
   count: z.coerce.number().int().min(1).max(500),
 });
 
+async function assertTermInSchool(termId: string, schoolId: string | null) {
+  if (!schoolId) return true;
+  const term = await prisma.term.findUnique({
+    where: { id: termId },
+    include: { session: { select: { schoolId: true } } },
+  });
+  if (!term) return false;
+  // Legacy sessions with null schoolId are treated as shared/default school
+  if (term.session.schoolId == null) return true;
+  return term.session.schoolId === schoolId;
+}
+
 /** GET: summary of pins for current term filter */
 export async function GET(req: Request) {
   const session = await getSession();
@@ -22,8 +35,20 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const schoolId = await resolveSchoolId(session);
   const termId = new URL(req.url).searchParams.get("termId");
-  const where = termId ? { termId } : {};
+
+  if (termId) {
+    const ok = await assertTermInSchool(termId, schoolId);
+    if (!ok) return NextResponse.json({ error: "Term not found" }, { status: 404 });
+  }
+
+  const where = termId
+    ? { termId }
+    : schoolId
+      ? { term: { session: { schoolId } } }
+      : {};
+
   const [total, used] = await Promise.all([
     prisma.resultPin.count({ where }),
     prisma.resultPin.count({ where: { ...where, isUsed: true } }),
@@ -46,6 +71,12 @@ export async function POST(req: Request) {
   }
 
   const { termId, count } = parsed.data;
+  const schoolId = await resolveSchoolId(session);
+  const ok = await assertTermInSchool(termId, schoolId);
+  if (!ok) {
+    return NextResponse.json({ error: "Term not found" }, { status: 404 });
+  }
+
   const term = await prisma.term.findUnique({ where: { id: termId } });
   if (!term) {
     return NextResponse.json({ error: "Term not found" }, { status: 404 });
@@ -57,7 +88,6 @@ export async function POST(req: Request) {
   }
 
   const data = [...codes].map((code) => ({ code, termId }));
-  // createMany may fail on rare collisions with existing codes; retry unique ones
   let created = 0;
   for (const row of data) {
     try {
@@ -70,6 +100,7 @@ export async function POST(req: Request) {
 
   await logAudit({
     userId: session.userId,
+    schoolId: schoolId ?? undefined,
     action: "BULK_GENERATE_RESULT_PINS",
     entity: "ResultPin",
     details: { termId, requested: count, created },

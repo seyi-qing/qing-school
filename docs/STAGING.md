@@ -13,17 +13,19 @@
 2. Never run experimental `prisma db push` / Decimal migrations against production.
 3. Merge `staging` → `main` only after staging is Ready and smoke-tested.
 4. Keep `PAYMENTS_MODE=mock` on staging until intentionally testing Paystack.
+5. On Hobby: promote Preview → Production (or deploy branch `staging` to Production) when Production Branch UI is missing.
 
-## Deploy staging
+## Isolation progress (`staging` branch)
 
-Vercel project **qing-school-staging** → Settings → Git → Production Branch = `staging`.
+- Leave list/review by staff.schoolId
+- Report CSVs: students, debtors, attendance
+- Student export CSV by schoolId
+- Result PINs tied to term → session.schoolId
+- Exam scores GET checks arm → class.schoolId
+- Classes, notices, payroll, CBT list (already)
 
-Or manually: Deployments → Create → branch `staging`.
+## Next
 
-## Isolation progress (this branch)
-
-- Leave list/review scoped by staff.schoolId
-- Report CSVs (students, debtors, attendance) scoped by schoolId
-- Classes already scoped on main
-
-Next: remaining edges (exams, CBT, result-pins), then Decimal on staging only.
+- Remaining thin edges (ops export, settings if any global lists)
+- Decimal money on staging only
+- Playwright smoke: login + fee payment (mock)
