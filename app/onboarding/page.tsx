@@ -36,6 +36,7 @@ export default function OnboardingPage() {
       setError(data.error || "Could not create school");
       return;
     }
+    // Always portal login — never public marketing homepage
     router.push(data.redirectTo || "/login");
   }
 
@@ -86,12 +87,17 @@ export default function OnboardingPage() {
             {busy ? "Creating school..." : "Create school workspace"}
           </button>
         </form>
-        <p className="text-center text-xs text-ink/50 mt-4 space-x-3">
-          <Link href="/platform" className="underline text-navy">Platform</Link>
-          <span>·</span>
-          <Link href="/dashboard" className="underline text-navy">Dashboard</Link>
-          <span>·</span>
-          <Link href="/login" className="underline">Sign in</Link>
+        <p className="text-center text-xs text-ink/50 mt-4 flex flex-wrap justify-center gap-x-3 gap-y-1">
+          <Link href="/platform" className="underline text-navy">
+            Platform control
+          </Link>
+          <span className="text-ink/30">·</span>
+          <Link href="/login" className="underline text-navy font-medium">
+            Portal sign in
+          </Link>
+        </p>
+        <p className="text-center text-[11px] text-ink/40 mt-2">
+          Sign in opens the staff/parent portal login — not the public school website.
         </p>
       </div>
     </main>

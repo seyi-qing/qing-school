@@ -12,7 +12,7 @@ interface NavItem {
 
 /**
  * Role-based navigation.
- * One password entry only: /account/password (not also Settings → Security).
+ * Password lives under header account menu (Profile), not duplicated here.
  */
 const NAV_ITEMS: NavItem[] = [
   {
@@ -29,21 +29,6 @@ const NAV_ITEMS: NavItem[] = [
     href: "/onboarding",
     label: "Onboard school",
     roles: ["PLATFORM_ADMIN"],
-  },
-  {
-    href: "/account/password",
-    label: "Change password",
-    roles: [
-      "PLATFORM_ADMIN",
-      "ADMIN",
-      "IT",
-      "SECRETARY",
-      "PRINCIPAL",
-      "ACCOUNTANT",
-      "TEACHER",
-      "STUDENT",
-      "PARENT",
-    ],
   },
 
   { href: "/portal/student", label: "My Portal", roles: ["STUDENT"] },
@@ -257,7 +242,14 @@ export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => v
         })}
       </nav>
 
-      <div className="shrink-0 p-4 border-t border-paper/10 bg-navy">
+      <div className="shrink-0 p-4 border-t border-paper/10 bg-navy space-y-2">
+        <Link
+          href="/account/profile"
+          onClick={onNavigate}
+          className="block w-full text-center border border-paper/20 text-paper/80 text-sm py-2 hover:border-gold hover:text-gold"
+        >
+          My profile
+        </Link>
         <button
           type="button"
           onClick={logout}
