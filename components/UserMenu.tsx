@@ -6,12 +6,30 @@ import { useRouter } from "next/navigation";
 
 /**
  * Header account menu: profile, change password, sign out.
- * Replaces a lone Sign out control so admins manage account in one place.
+ * Loads email from /api/auth/me when not passed by the page.
  */
-export function UserMenu({ email }: { email?: string }) {
+export function UserMenu({ email: emailProp }: { email?: string }) {
   const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState(emailProp || "");
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    if (emailProp) {
+      setEmail(emailProp);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d?.email) setEmail(d.email);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [emailProp]);
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
