@@ -172,7 +172,14 @@ export async function DELETE(req: Request) {
     const sc = await prisma.schoolClass.findUnique({
       where: { id },
       include: {
-        arms: { include: { students: { where: { status: { in: ["ACTIVE", "APPLIED"] } }, select: { id: true } } } },
+        arms: {
+          include: {
+            students: {
+              where: { status: { in: ["ACTIVE", "APPLIED"] } },
+              select: { id: true },
+            },
+          },
+        },
       },
     });
     if (!sc) return NextResponse.json({ error: "Class not found." }, { status: 404 });
@@ -188,7 +195,6 @@ export async function DELETE(req: Request) {
         { status: 409 }
       );
     }
-    // Arms cascade; fee items / timetable on empty arms cascade via Arm
     await prisma.schoolClass.delete({ where: { id } });
     await logAudit({
       userId: session.userId,
@@ -196,7 +202,7 @@ export async function DELETE(req: Request) {
       action: "DELETE_CLASS",
       entity: "SchoolClass",
       entityId: id,
-      details: sc.name,
+      details: { name: sc.name },
     });
     return NextResponse.json({ ok: true, deleted: "class" });
   }
@@ -206,7 +212,10 @@ export async function DELETE(req: Request) {
       where: { id },
       include: {
         schoolClass: true,
-        students: { where: { status: { in: ["ACTIVE", "APPLIED"] } }, select: { id: true } },
+        students: {
+          where: { status: { in: ["ACTIVE", "APPLIED"] } },
+          select: { id: true },
+        },
       },
     });
     if (!arm) return NextResponse.json({ error: "Arm not found." }, { status: 404 });
@@ -228,12 +237,11 @@ export async function DELETE(req: Request) {
       action: "DELETE_ARM",
       entity: "Arm",
       entityId: id,
-      details: arm.name,
+      details: { name: arm.name, classId: arm.schoolClassId },
     });
     return NextResponse.json({ ok: true, deleted: "arm" });
   }
 
-  // subject
   const subject = await prisma.subject.findUnique({
     where: { id },
     include: {
@@ -250,7 +258,6 @@ export async function DELETE(req: Request) {
       { status: 409 }
     );
   }
-  // ArmSubject cascades on subject delete (schema onDelete: Cascade)
   await prisma.subject.delete({ where: { id } });
   await logAudit({
     userId: session.userId,
@@ -258,7 +265,7 @@ export async function DELETE(req: Request) {
     action: "DELETE_SUBJECT",
     entity: "Subject",
     entityId: id,
-    details: subject.name,
+    details: { name: subject.name },
   });
   return NextResponse.json({ ok: true, deleted: "subject" });
 }
