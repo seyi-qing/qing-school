@@ -5,6 +5,7 @@ import { verifyPassword, createSession } from "@/lib/auth";
 import { homeRouteForRole } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 import { ensureDefaultSchool } from "@/lib/tenant";
+import { isSchoolSuspended } from "@/lib/tenant-scope";
 import { checkRateLimit, clearRateLimit, rateLimitKey } from "@/lib/rate-limit";
 
 const LoginSchema = z.object({
@@ -82,6 +83,20 @@ export async function POST(req: Request) {
       schoolId = kms.id;
     }
 
+    // Suspend-on-nonpay / admin suspend — block school users (not platform)
+    if (schoolId && user.role !== "PLATFORM_ADMIN") {
+      const suspended = await isSchoolSuspended(schoolId);
+      if (suspended) {
+        return NextResponse.json(
+          {
+            error:
+              "This school workspace is suspended. Contact the platform operator or settle billing to restore access.",
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     const mustChange = Boolean(user.mustChangePassword);
 
     try {
@@ -111,7 +126,6 @@ export async function POST(req: Request) {
         details: { schoolId: schoolId ?? null, role: user.role },
       });
     } catch (auditErr) {
-      // Non-fatal: login still succeeds
       console.error("[login] audit", auditErr);
     }
 

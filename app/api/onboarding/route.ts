@@ -49,6 +49,7 @@ export async function POST(req: Request) {
         isActive: true,
         isDemo: false,
         maxStudents: data.plan === "STARTER" ? 300 : data.plan === "PRO" ? 1500 : 10000,
+        subscriptionStatus: "TRIAL",
       },
     });
     const user = await tx.user.create({
@@ -85,17 +86,22 @@ export async function POST(req: Request) {
 
   await logAudit({
     userId: result.user.id,
+    schoolId: result.school.id,
     action: "ONBOARD_SCHOOL",
     entity: "School",
     entityId: result.school.id,
     details: { slug: data.slug, plan: data.plan },
   });
 
-  return NextResponse.json({
-    ok: true,
-    schoolId: result.school.id,
-    slug: result.school.slug,
-    message: "School created. Log in with your admin email.",
-    loginUrl: "/login",
-  }, { status: 201 });
+  return NextResponse.json(
+    {
+      ok: true,
+      schoolId: result.school.id,
+      slug: result.school.slug,
+      message: "School created. Log in with your admin email.",
+      loginUrl: "/login",
+      redirectTo: "/login",
+    },
+    { status: 201 }
+  );
 }
