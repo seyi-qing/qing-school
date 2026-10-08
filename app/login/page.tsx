@@ -25,11 +25,17 @@ function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const msg = data.error || "Login failed";
+        const msg =
+          (typeof data.error === "string" && data.error) ||
+          (res.status === 503
+            ? "Server configuration error. Check Vercel env (DATABASE_URL, SESSION_SECRET)."
+            : res.status === 429
+              ? "Too many attempts. Wait and try again."
+              : `Login failed (${res.status}).`);
         setError(msg);
         toast(msg, "error");
         setLoading(false);
@@ -65,7 +71,9 @@ function LoginForm() {
 
         <form onSubmit={onSubmit} className="ledger-block space-y-4">
           {error && (
-            <p className="text-sm text-brick border border-brick/30 bg-brick/5 px-3 py-2">{error}</p>
+            <p className="text-sm text-brick border border-brick/30 bg-brick/5 px-3 py-2 whitespace-pre-wrap">
+              {error}
+            </p>
           )}
           <div>
             <label className="block text-xs uppercase tracking-wide text-ink/50 mb-1" htmlFor="email">
@@ -96,6 +104,11 @@ function LoginForm() {
               className="w-full border border-line bg-white px-3 py-2.5 text-sm focus:border-navy outline-none"
             />
           </div>
+          <p className="text-right text-xs">
+            <Link href="/account/forgot-password" className="text-navy underline hover:text-gold">
+              Forgot password?
+            </Link>
+          </p>
           <button
             type="submit"
             disabled={loading}
