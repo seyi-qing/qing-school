@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { toCsv, csvResponse } from "@/lib/csv";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 
 export async function GET() {
   const session = await getSession();
@@ -9,8 +10,10 @@ export async function GET() {
     return new Response("Forbidden", { status: 403 });
   }
 
+  const schoolId = await resolveSchoolId(session);
+
   const students = await prisma.student.findMany({
-    where: { status: "ACTIVE" },
+    where: { status: "ACTIVE", ...schoolWhere(schoolId) },
     include: { arm: { include: { schoolClass: true } } },
     orderBy: [{ lastName: "asc" }],
   });

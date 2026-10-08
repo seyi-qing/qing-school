@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { resolveSchoolId } from "@/lib/tenant-scope";
 
 const CreateSchema = z.object({
   startDate: z.string(),
@@ -19,10 +20,12 @@ export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const isManager = ["ADMIN", "IT", "PRINCIPAL"].includes(session.role);
+  const schoolId = await resolveSchoolId(session);
+  const isManager = ["ADMIN", "IT", "PRINCIPAL", "PLATFORM_ADMIN"].includes(session.role);
 
   if (isManager) {
     const requests = await prisma.leaveRequest.findMany({
+      where: schoolId ? { staff: { schoolId } } : undefined,
       include: { staff: true },
       orderBy: { createdAt: "desc" },
       take: 100,
@@ -45,20 +48,32 @@ export async function POST(req: Request) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
+  const schoolId = await resolveSchoolId(session);
 
   // Manager review
   if (body?.status && body?.id) {
-    if (!["ADMIN", "IT", "PRINCIPAL"].includes(session.role)) {
+    if (!["ADMIN", "IT", "PRINCIPAL", "PLATFORM_ADMIN"].includes(session.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const parsed = ReviewSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: "Invalid" }, { status: 400 });
+
+    const existing = await prisma.leaveRequest.findUnique({
+      where: { id: parsed.data.id },
+      include: { staff: { select: { schoolId: true } } },
+    });
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (schoolId && existing.staff.schoolId && existing.staff.schoolId !== schoolId) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     const updated = await prisma.leaveRequest.update({
       where: { id: parsed.data.id },
       data: { status: parsed.data.status },
     });
     await logAudit({
       userId: session.userId,
+      schoolId: schoolId ?? undefined,
       action: `LEAVE_${parsed.data.status}`,
       entity: "LeaveRequest",
       entityId: updated.id,
@@ -87,6 +102,7 @@ export async function POST(req: Request) {
 
   await logAudit({
     userId: session.userId,
+    schoolId: schoolId ?? undefined,
     action: "REQUEST_LEAVE",
     entity: "LeaveRequest",
     entityId: request.id,

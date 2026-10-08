@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { toCsv, csvResponse } from "@/lib/csv";
+import { resolveSchoolId } from "@/lib/tenant-scope";
 
 export async function GET(req: Request) {
   const session = await getSession();
@@ -9,13 +10,17 @@ export async function GET(req: Request) {
     return new Response("Forbidden", { status: 403 });
   }
 
+  const schoolId = await resolveSchoolId(session);
   const { searchParams } = new URL(req.url);
   const days = Number(searchParams.get("days") ?? 30);
   const since = new Date();
   since.setDate(since.getDate() - days);
 
   const attendances = await prisma.attendance.findMany({
-    where: { date: { gte: since } },
+    where: {
+      date: { gte: since },
+      ...(schoolId ? { student: { schoolId } } : {}),
+    },
     include: { student: true },
     orderBy: { date: "desc" },
   });

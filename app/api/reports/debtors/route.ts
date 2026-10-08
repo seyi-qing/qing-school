@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { toCsv, csvResponse } from "@/lib/csv";
 import { toMoney } from "@/lib/money";
+import { resolveSchoolId } from "@/lib/tenant-scope";
 
 export async function GET() {
   const session = await getSession();
@@ -10,8 +11,13 @@ export async function GET() {
     return new Response("Forbidden", { status: 403 });
   }
 
+  const schoolId = await resolveSchoolId(session);
+
   const invoices = await prisma.invoice.findMany({
-    where: { status: { in: ["UNPAID", "PARTIAL"] } },
+    where: {
+      status: { in: ["UNPAID", "PARTIAL"] },
+      ...(schoolId ? { student: { schoolId } } : {}),
+    },
     include: { student: { include: { arm: { include: { schoolClass: true } } } } },
   });
 
