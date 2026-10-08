@@ -1,6 +1,6 @@
 {
   "name": "kms-school-erp",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "description": "Qing School — multi-tenant school ERP / SaaS (KMS first tenant)",
   "scripts": {
@@ -15,6 +15,7 @@
     "setup": "npm install && prisma generate && prisma db push && npm run db:seed",
     "test": "vitest run",
     "test:unit": "tsx lib/tenant-scope.test.ts && tsx lib/permissions.test.ts && tsx lib/money.test.ts && tsx lib/rate-limit.test.ts",
+    "test:smoke": "node scripts/smoke-login.mjs",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:status": "prisma migrate status",

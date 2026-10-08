@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 
@@ -21,11 +22,17 @@ const Schema = z.object({
 
 export async function GET(req: Request) {
   const session = await getSession();
-  if (!session || !["ADMIN", "IT", "SECRETARY"].includes(session.role)) {
+  if (!session || !can(session.role, "MANAGE_CMS")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const id = new URL(req.url).searchParams.get("id");
+  const schoolId = await resolveSchoolId(session);
   if (id) {
+    const page = await prisma.cmsPage.findUnique({ where: { id } });
+    if (!page) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (schoolId && page.schoolId && page.schoolId !== schoolId) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const versions = await prisma.cmsPageVersion.findMany({
       where: { pageId: id },
       orderBy: { createdAt: "desc" },
@@ -33,7 +40,6 @@ export async function GET(req: Request) {
     });
     return NextResponse.json({ versions });
   }
-  const schoolId = await resolveSchoolId(session);
   const pages = await prisma.cmsPage.findMany({
     where: schoolWhere(schoolId),
     orderBy: { updatedAt: "desc" },
@@ -43,15 +49,22 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const session = await getSession();
-  if (!session || !["ADMIN", "IT", "SECRETARY"].includes(session.role)) {
+  if (!session || !can(session.role, "MANAGE_CMS")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json().catch(() => null);
+  const schoolId = await resolveSchoolId(session);
 
   if (body?.action === "restore" && body?.versionId) {
-    const ver = await prisma.cmsPageVersion.findUnique({ where: { id: body.versionId } });
+    const ver = await prisma.cmsPageVersion.findUnique({
+      where: { id: body.versionId },
+      include: { page: { select: { schoolId: true } } },
+    });
     if (!ver) return NextResponse.json({ error: "Version not found" }, { status: 404 });
+    if (schoolId && ver.page.schoolId && ver.page.schoolId !== schoolId) {
+      return NextResponse.json({ error: "Version not found" }, { status: 404 });
+    }
     const page = await prisma.cmsPage.update({
       where: { id: ver.pageId },
       data: {
@@ -78,13 +91,17 @@ export async function POST(req: Request) {
     publishAt: parsed.data.publishAt ? new Date(parsed.data.publishAt) : null,
   };
 
-  const schoolId = await resolveSchoolId(session);
   const existing = await prisma.cmsPage.findFirst({
     where: { slug: parsed.data.slug, schoolId: schoolId ?? undefined },
   });
   const page = existing
-    ? await prisma.cmsPage.update({ where: { id: existing.id }, data: { ...data, schoolId: schoolId ?? existing.schoolId } })
-    : await prisma.cmsPage.create({ data: { slug: parsed.data.slug, schoolId, ...data } });
+    ? await prisma.cmsPage.update({
+        where: { id: existing.id },
+        data: { ...data, schoolId: schoolId ?? existing.schoolId },
+      })
+    : await prisma.cmsPage.create({
+        data: { slug: parsed.data.slug, schoolId, ...data },
+      });
 
   await prisma.cmsPageVersion.create({
     data: {
@@ -108,6 +125,7 @@ export async function POST(req: Request) {
 
   await logAudit({
     userId: session.userId,
+    schoolId: schoolId ?? undefined,
     action: "UPSERT_CMS_PAGE",
     entity: "CmsPage",
     entityId: page.id,
@@ -118,12 +136,27 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   const session = await getSession();
-  if (!session || !["ADMIN", "IT"].includes(session.role)) {
+  if (!session || !can(session.role, "MANAGE_CMS")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  const schoolId = await resolveSchoolId(session);
+  const page = await prisma.cmsPage.findUnique({ where: { id } });
+  if (!page) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (schoolId && page.schoolId && page.schoolId !== schoolId) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   await prisma.cmsPageVersion.deleteMany({ where: { pageId: id } });
   await prisma.cmsPage.delete({ where: { id } });
+  await logAudit({
+    userId: session.userId,
+    schoolId: schoolId ?? undefined,
+    action: "DELETE_CMS_PAGE",
+    entity: "CmsPage",
+    entityId: id,
+  });
   return NextResponse.json({ ok: true });
 }

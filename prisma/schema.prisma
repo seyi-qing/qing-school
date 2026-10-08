@@ -78,8 +78,21 @@ model User {
   student      Student?
   parentLinks  ParentLink[]
   auditLogs    AuditLog[]
+  passwordResetTokens PasswordResetToken[]
   @@index([role])
   @@index([schoolId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  @@index([tokenHash])
+  @@index([userId])
 }
 
 model ParentLink {
@@ -359,12 +372,14 @@ model CmsPageVersion {
 
 model MediaAsset {
   id         String   @id @default(cuid())
+  schoolId   String?
   url        String
   filename   String
   mimeType   String?
   sizeBytes  Int?
   uploadedBy String?
   createdAt  DateTime @default(now())
+  @@index([schoolId])
 }
 
 model SiteTheme {
