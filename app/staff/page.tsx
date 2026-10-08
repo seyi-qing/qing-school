@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/require-session";
 import { PortalShell } from "@/components/PortalShell";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
+import { toMoney } from "@/lib/money";
 import { StaffTable } from "./StaffTable";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,6 @@ export default async function StaffPage() {
   const session = await requireSession();
   const schoolId = await resolveSchoolId(session);
 
-  // Backfill legacy staff with no schoolId onto this school
   if (schoolId) {
     await prisma.staff.updateMany({
       where: { schoolId: null },
@@ -31,6 +31,7 @@ export default async function StaffPage() {
       role={session.role}
       title="Staff"
       subtitle={`${staff.length} staff on record · edit role, status, salary, reset password`}
+      email={session.email}
       actions={
         <Link href="/staff/new" className="bg-navy text-paper text-sm px-4 py-2 hover:bg-navy-light">
           + Add Staff
@@ -57,7 +58,7 @@ export default async function StaffPage() {
             designation: s.designation,
             category: s.category,
             phone: s.phone,
-            monthlySalary: s.monthlySalary,
+            monthlySalary: s.monthlySalary == null ? null : toMoney(s.monthlySalary),
             isActive: s.isActive && s.user.isActive,
             email: s.user.email,
             role: s.user.role,

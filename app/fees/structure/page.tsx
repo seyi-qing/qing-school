@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { PortalShell } from "@/components/PortalShell";
 import { homeRouteForRole, can } from "@/lib/permissions";
+import { toMoney } from "@/lib/money";
+import { resolveSchoolId } from "@/lib/tenant-scope";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { FeeStructureClient } from "./FeeStructureClient";
@@ -14,13 +16,22 @@ export default async function FeeStructurePage() {
     redirect(homeRouteForRole(session.role));
   }
 
+  const schoolId = await resolveSchoolId(session);
+
   const [arms, terms, items] = await Promise.all([
     prisma.arm.findMany({
+      where: schoolId ? { schoolClass: { schoolId } } : undefined,
       include: { schoolClass: true },
       orderBy: [{ schoolClass: { order: "asc" } }, { name: "asc" }],
     }),
-    prisma.term.findMany({ orderBy: { startDate: "desc" } }),
-    prisma.feeItem.findMany({ orderBy: { createdAt: "asc" } }),
+    prisma.term.findMany({
+      where: schoolId ? { session: { schoolId } } : undefined,
+      orderBy: { startDate: "desc" },
+    }),
+    prisma.feeItem.findMany({
+      where: schoolId ? { arm: { schoolClass: { schoolId } } } : undefined,
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
 
   return (
@@ -28,6 +39,7 @@ export default async function FeeStructurePage() {
       role={session.role}
       title="Fee structure"
       subtitle="Define class/term fees and generate student invoices"
+      email={session.email}
       actions={
         <Link href="/fees" className="text-sm border border-navy text-navy px-3 py-1.5">
           Back to Fees
@@ -50,7 +62,7 @@ export default async function FeeStructurePage() {
           items={items.map((i) => ({
             id: i.id,
             name: i.name,
-            amount: i.amount,
+            amount: toMoney(i.amount),
             compulsory: i.compulsory,
             armId: i.armId,
             termId: i.termId,

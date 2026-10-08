@@ -3,19 +3,24 @@ import { requireSession } from "@/lib/require-session";
 import { PortalShell } from "@/components/PortalShell";
 import { homeRouteForRole } from "@/lib/permissions";
 import { formatNaira } from "@/lib/format";
+import { toMoney } from "@/lib/money";
+import { resolveSchoolId, schoolWhere } from "@/lib/tenant-scope";
 import { redirect } from "next/navigation";
 import { TransportClient } from "./TransportClient";
 
 export const dynamic = "force-dynamic";
 
-const ALLOWED = ["ADMIN", "IT", "SECRETARY", "PRINCIPAL", "ACCOUNTANT"];
-
 export default async function TransportPage() {
   const session = await requireSession();
-  if (!ALLOWED.includes(session.role)) redirect(homeRouteForRole(session.role));
+  if (!["ADMIN", "IT", "SECRETARY", "PLATFORM_ADMIN"].includes(session.role)) {
+    redirect(homeRouteForRole(session.role));
+  }
+
+  const schoolId = await resolveSchoolId(session);
 
   const [routes, students] = await Promise.all([
     prisma.transportRoute.findMany({
+      where: schoolWhere(schoolId),
       include: {
         enrollments: {
           where: { status: "ACTIVE" },
@@ -29,7 +34,7 @@ export default async function TransportPage() {
       orderBy: { name: "asc" },
     }),
     prisma.student.findMany({
-      where: { status: "ACTIVE" },
+      where: { status: "ACTIVE", ...schoolWhere(schoolId) },
       select: { id: true, firstName: true, lastName: true, admissionNumber: true },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
       take: 500,
@@ -37,7 +42,12 @@ export default async function TransportPage() {
   ]);
 
   return (
-    <PortalShell role={session.role} title="Transport" subtitle="Bus routes, drivers, and riders">
+    <PortalShell
+      role={session.role}
+      title="Transport"
+      subtitle="Bus routes, drivers, and riders"
+      email={session.email}
+    >
       <TransportClient
         routes={routes.map((r) => ({
           id: r.id,
@@ -45,7 +55,7 @@ export default async function TransportPage() {
           vehicle: r.vehicle,
           driverName: r.driverName,
           driverPhone: r.driverPhone,
-          feeAmount: r.feeAmount,
+          feeAmount: toMoney(r.feeAmount),
           feeLabel: formatNaira(r.feeAmount),
           riders: r.enrollments.map((e) => ({
             id: e.id,
